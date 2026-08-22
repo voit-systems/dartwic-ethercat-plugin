@@ -90,4 +90,4 @@ add_custom_target(copy_engine_plugin
 
 message(STATUS "Example engine plugin dir: ${ENGINE_PLUGIN_DIR}")
 message(STATUS "Example engine plugin variant: ${ENGINE_PLUGIN_VARIANT}")
-message(STATUS "Engine SDK headers are mirrored into engine/include/sdk by the release sync tooling.")
+message(STATUS "Using the bundled Engine SDK snapshot from engine/include/sdk.")
