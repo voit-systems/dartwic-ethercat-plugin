@@ -24,7 +24,8 @@ async function hashDirectory(root) {
   for (const relativePath of await listFiles(root)) {
     hash.update(relativePath);
     hash.update("\0");
-    hash.update(await fs.readFile(path.join(root, relativePath)));
+    const contents = await fs.readFile(path.join(root, relativePath), "utf8");
+    hash.update(contents.replaceAll("\r\n", "\n").replaceAll("\r", "\n"));
     hash.update("\0");
   }
   return hash.digest("hex");
@@ -47,7 +48,7 @@ export async function verifySdkLock() {
   const expected = JSON.parse(await fs.readFile(lockPath, "utf8"));
   const actual = await buildSdkLock();
   if (expected.engineSdkSha256 !== actual.engineSdkSha256 || expected.interfaceSdkSha256 !== actual.interfaceSdkSha256) {
-    throw new Error("Bundled SDK copies do not match sdk-lock.json. Re-sync the plugin template SDKs.");
+    throw new Error("Bundled SDK files differ from sdk-lock.json. Restore the SDK snapshot from this repository tag.");
   }
   return actual;
 }
