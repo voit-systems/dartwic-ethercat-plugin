@@ -1,0 +1,29 @@
+{
+  "name": "@dartwic/interface-sdk",
+  "private": true,
+  "version": "0.2.0",
+  "type": "module",
+  "dartwic": {
+    "minInterfaceVersion": "1.0.0-pre_release"
+  },
+  "dependencies": {
+    "tailwindcss-animate": "^1.0.7"
+  },
+  "exports": {
+    ".": "./index.ts",
+    "./hooks": "./hooks/index.ts",
+    "./module-configs": "./module-configs/index.ts",
+    "./plugin-settings": "./plugin-settings/index.ts",
+    "./react": "./react.ts",
+    "./resources": "./resources/index.ts",
+    "./runtime": "./runtime.ts",
+    "./schematic-nodes": "./schematic-nodes/index.ts",
+    "./tailwind-preset": "./tailwind-preset.ts",
+    "./tasks": "./tasks/index.ts",
+    "./types": "./types/index.ts",
+    "./ui": "./ui/index.ts",
+    "./ui/dartwic": "./ui/dartwic.ts",
+    "./ui/general": "./ui/general.ts",
+    "./utils": "./utils/index.ts"
+  }
+}

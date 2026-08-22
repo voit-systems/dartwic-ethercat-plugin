@@ -1,0 +1,11 @@
+{
+  "id": "example_device_plugin",
+  "name": "Example Device Plugin",
+  "description": "A complete DARTWIC 2.0 engine and interface plugin example.",
+  "author": "DARTWIC",
+  "version": "2.0.0-beta.1",
+  "minEngineVersion": "2.0.0-pre_release",
+  "minInterfaceVersion": "1.0.0-pre_release",
+  "contains_engine_plugin": true,
+  "contains_interface_plugin": true
+}

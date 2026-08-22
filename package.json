@@ -1,0 +1,24 @@
+{
+  "name": "dartwic-example-device-plugin",
+  "private": true,
+  "version": "2.0.0-beta.1",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "build:interface": "node build.mjs",
+    "sync-sdk": "node ../../releases/scripts/sync-example-plugin-template.mjs",
+    "verify": "node ./scripts/plugin-verify.mjs",
+    "verify:sdk": "node ./scripts/plugin-sdk-lock.mjs",
+    "preversion": "node ./scripts/plugin-version.mjs --validate",
+    "version": "node ./scripts/plugin-version.mjs",
+    "package": "node ./scripts/plugin-package.mjs",
+    "package-debug": "node ./scripts/plugin-package.mjs --debug",
+    "deploy": "node ./scripts/plugin-deploy.mjs",
+    "deploy-debug": "node ./scripts/plugin-deploy.mjs --debug",
+    "deploy:engine-debug": "node ./scripts/plugin-deploy.mjs --engine-debug",
+    "deploy:interface": "node ./scripts/plugin-deploy.mjs --interface"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}
