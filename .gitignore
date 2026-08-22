@@ -4,3 +4,4 @@ vcpkg_installed/
 plugin/
 plugin.zip
 contributions.json
+deployment-settings.json

@@ -5,6 +5,8 @@ import vm from "node:vm";
 import {verifySdkLock} from "./plugin-sdk-lock.mjs";
 import {
   getPluginSidePaths,
+  packageJsonPath,
+  pathExists,
   pluginManifestPath,
   readJson,
   validatePluginManifest,
@@ -24,8 +26,30 @@ async function materializeInterfacePlugin(pluginId, runtimePath) {
 
 async function main() {
   await verifySdkLock();
+  const packageJson = await readJson(packageJsonPath);
+  const scripts = packageJson?.scripts ?? {};
+  for (const [name, command] of Object.entries(scripts)) {
+    if (typeof command !== "string") {
+      throw new Error(`package.json script '${name}' must be a string.`);
+    }
+    if (name === "sync-sdk" || command.includes("../") || command.includes("..\\") || command.includes("releases/scripts")) {
+      throw new Error(`package.json script '${name}' depends on files outside this standalone repository.`);
+    }
+  }
   const manifest = await readJson(pluginManifestPath);
   const {pluginId} = validatePluginManifest(manifest);
+  if (process.argv.includes("--source-only")) {
+    const requiredSources = [
+      path.resolve("CMakeLists.txt"),
+      path.resolve("engine", "src", "example_device_plugin.cpp"),
+      path.resolve("interface", "src", "runtime-entry.jsx"),
+    ];
+    const missing = [];
+    for (const sourcePath of requiredSources) if (!(await pathExists(sourcePath))) missing.push(sourcePath);
+    if (missing.length) throw new Error(`Required plugin source files are missing: ${missing.join(", ")}`);
+    process.stdout.write(`Verified standalone plugin source '${pluginId}' and its bundled SDK snapshots.\n`);
+    return;
+  }
   const {engineReleaseDir, interfaceDir} = getPluginSidePaths(pluginId);
 
   if (manifest.contains_engine_plugin) {

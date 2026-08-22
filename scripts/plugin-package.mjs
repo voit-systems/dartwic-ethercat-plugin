@@ -214,11 +214,13 @@ async function main() {
   const hasEngine = Boolean(pluginManifest.contains_engine_plugin);
   const hasInterface = Boolean(pluginManifest.contains_interface_plugin);
 
-  const standaloneVcpkgRoot = path.resolve(repoRoot, "vcpkg");
-  const monorepoVcpkgRoot = path.resolve(repoRoot, "..", "..", "vcpkg");
-  process.env.VCPKG_ROOT = await pathExists(standaloneVcpkgRoot)
-    ? standaloneVcpkgRoot
-    : monorepoVcpkgRoot;
+  const configuredVcpkgRoot = String(process.env.VCPKG_ROOT ?? "").trim();
+  const localVcpkgRoot = path.resolve(repoRoot, "vcpkg");
+  const vcpkgRoot = configuredVcpkgRoot || (await pathExists(localVcpkgRoot) ? localVcpkgRoot : "");
+  if (!vcpkgRoot || !(await pathExists(path.resolve(vcpkgRoot, "scripts", "buildsystems", "vcpkg.cmake")))) {
+    throw new Error("Native packaging requires VCPKG_ROOT to point to your vcpkg checkout (or a vcpkg/ directory in this repository).");
+  }
+  process.env.VCPKG_ROOT = path.resolve(vcpkgRoot);
 
   await preparePluginOutput(pluginId, hasEngine, hasInterface);
 
@@ -237,7 +239,7 @@ async function main() {
     await verifyInterfaceOutput(pluginId);
   }
 
-  await runCommand(getNpmCommand(), ["run", "verify"]);
+  await runCommand(getNpmCommand(), ["run", "verify:package"]);
 
   const archivePath = await createPluginArchive(debug);
 

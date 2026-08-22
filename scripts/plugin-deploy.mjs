@@ -48,14 +48,14 @@ async function loadPluginManifest() {
 }
 
 async function loadDeploymentSettings() {
-  const settings = await readJson(deploymentSettingsPath);
+  const settings = await readJson(deploymentSettingsPath, {});
   if (!settings || typeof settings !== "object" || Array.isArray(settings)) {
     throw new Error("deployment-settings.json must contain an object.");
   }
 
   return {
-    engineDir: String(settings.engine_dir ?? "").trim(),
-    interfaceDir: String(settings.interface_dir ?? "").trim(),
+    engineDir: String(process.env.DARTWIC_ENGINE_DIR ?? settings.engine_dir ?? "").trim(),
+    interfaceDir: String(process.env.DARTWIC_INTERFACE_DIR ?? settings.interface_dir ?? "").trim(),
   };
 }
 
@@ -135,7 +135,7 @@ async function requirePath(targetPath, label) {
 
 async function deployEngineVariant(sourceDir, engineDir, pluginId, label) {
   if (!engineDir) {
-    throw new Error(`deployment-settings.json must set engine_dir to deploy ${label}.`);
+    throw new Error(`Set DARTWIC_ENGINE_DIR or copy deployment-settings.example.json to deployment-settings.json and set engine_dir to deploy ${label}.`);
   }
 
   await requirePath(sourceDir, `${label} output`);
@@ -146,7 +146,7 @@ async function deployEngineVariant(sourceDir, engineDir, pluginId, label) {
 
 async function deployInterface(sourceDir, interfaceDir, pluginId) {
   if (!interfaceDir) {
-    throw new Error("deployment-settings.json must set interface_dir to deploy the interface plugin.");
+    throw new Error("Set DARTWIC_INTERFACE_DIR or copy deployment-settings.example.json to deployment-settings.json and set interface_dir to deploy the interface plugin.");
   }
 
   await requirePath(sourceDir, "interface plugin output");
@@ -162,7 +162,7 @@ async function deployRootFiles(engineDir) {
   }
 
   if (!engineDir) {
-    throw new Error("deployment-settings.json must set engine_dir to deploy files/.");
+    throw new Error("Set DARTWIC_ENGINE_DIR or configure engine_dir in deployment-settings.json to deploy files/.");
   }
 
   await fs.mkdir(engineDir, { recursive: true });
@@ -176,6 +176,19 @@ async function deployRootFiles(engineDir) {
   process.stdout.write(`Deployed files/ into ${engineDir}.\n`);
 }
 
+async function validateDeploymentTargets(deployMode, hasEngine, hasInterface, engineDir, interfaceDir) {
+  const deploysEngine = hasEngine && deployMode !== "interface";
+  const deploysInterface = hasInterface && deployMode !== "engine-debug";
+  const deploysRootFiles = await pathExists(path.resolve("files"));
+
+  if ((deploysEngine || deploysRootFiles) && !engineDir) {
+    throw new Error("Set DARTWIC_ENGINE_DIR or copy deployment-settings.example.json to deployment-settings.json and set engine_dir before deploying.");
+  }
+  if (deploysInterface && !interfaceDir) {
+    throw new Error("Set DARTWIC_INTERFACE_DIR or copy deployment-settings.example.json to deployment-settings.json and set interface_dir before deploying.");
+  }
+}
+
 async function main() {
   const deployMode = getDeployMode(process.argv.slice(2));
   const { pluginManifest, pluginId } = await loadPluginManifest();
@@ -183,6 +196,8 @@ async function main() {
   const sidePaths = getPluginSidePaths(pluginId);
   const hasEngine = Boolean(pluginManifest.contains_engine_plugin);
   const hasInterface = Boolean(pluginManifest.contains_interface_plugin);
+
+  await validateDeploymentTargets(deployMode, hasEngine, hasInterface, engineDir, interfaceDir);
 
   if (deployMode === "interface") {
     if (!hasInterface) {
