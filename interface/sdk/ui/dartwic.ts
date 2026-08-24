@@ -10,17 +10,17 @@ export const ConfigurableInput = createHostComponent<ConfigurableInputProps>("Co
 export const ManualRefreshButton = createHostComponent<ManualRefreshButtonProps>("ManualRefreshButton", (hostApi) => hostApi.helpers.ManualRefreshButton);
 
 /**
- * Converts a channel value path such as `portal/channel.value` into its channel name.
+ * Converts a value reference such as `|channel|` into its channel name.
  *
  * @dartwic-reference
  * @category DARTWIC UI Components
- * @param value Channel value path to normalize.
- * @returns The channel portion of the path.
+ * @param value Channel reference to normalize.
+ * @returns The channel name contained in the reference.
  */
-export function convertChannelValuePathToChannelName(value: string) {
-    const convert = getHostApi().helpers.convertChannelValuePathToChannelName;
+export function convertChannelReferenceToChannelName(value: string) {
+    const convert = getHostApi().helpers.convertChannelReferenceToChannelName;
     if (typeof convert !== "function") {
-        throw new Error("The interface host does not provide convertChannelValuePathToChannelName.");
+        throw new Error("The interface host does not provide convertChannelReferenceToChannelName.");
     }
     return String(convert(value));
 }

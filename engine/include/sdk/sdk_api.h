@@ -65,18 +65,14 @@ namespace DARTWIC::API {
         COMMANDED_BY,
         TIMESTAMP,
         UNITS,
-        SCALE,
-        OFFSET,
         STALE_TIMEOUT,
-        MAPPED_CHANNEL,
         RECORD_MODE,
-        MEAN,
-        STDEV,
-        BUFFER_SIZE,
         DATA_FRAME,
         CONTROL_POLICY,
         CONTROL_OWNER,
-        ACTIVE_CONTROLLER
+        ACTIVE_CONTROLLER,
+        LINKED_CALCULATION_SCRIPTS,
+        VALUE_OPTIONS
     };
 
     /**
@@ -104,13 +100,24 @@ namespace DARTWIC::API {
         ObserveOnly
     };
 
+    struct ChannelValueOption {
+        double value = 0.0;
+        std::string label;
+    };
+
+    struct ChannelCalculationLink {
+        std::string script;
+        std::string relationship;
+    };
+
     /**
      * Value types accepted by channel read, write, and authority APIs.
      *
      * @dartwic-reference
      * @category Channels
      */
-    using ChannelValue = std::variant<double, int, std::string, bool, RecordMode, ControlPolicy>;
+    using ChannelValue = std::variant<double, int, std::string, bool, RecordMode, ControlPolicy,
+        std::vector<ChannelValueOption>, std::vector<ChannelCalculationLink>>;
 
     /**
      * Handler for a plugin-defined TEMPEST extension operation.
@@ -144,13 +151,12 @@ namespace DARTWIC::API {
     };
 
     /**
-     * Legacy driver-host periodic task ABI.
+     * Driver-host periodic task ABI.
      *
      * @dartwic-reference-exclude driver-descoped
      */
     struct DriverPeriodicTaskRegistration {
         const char* task_type = nullptr;
-        const char* portal = nullptr;
         const char* task_name = nullptr;
         void* context = nullptr;
         void (*on_start)(void* context, double elapsed_seconds) = nullptr;
@@ -159,13 +165,12 @@ namespace DARTWIC::API {
     };
 
     /**
-     * Legacy driver-host state-machine task ABI.
+     * Driver-host state-machine task ABI.
      *
      * @dartwic-reference-exclude driver-descoped
      */
     struct DriverStateMachineTaskRegistration {
         const char* task_type = nullptr;
-        const char* portal = nullptr;
         const char* task_name = nullptr;
         const char* states_json = nullptr;
         void* context = nullptr;
@@ -175,14 +180,14 @@ namespace DARTWIC::API {
     };
 
     /**
-     * Legacy driver runtime host ABI retained for binary compatibility.
+     * Driver runtime host ABI. This ABI intentionally has no legacy grouping or path fields.
      *
      * @dartwic-reference-exclude driver-descoped
      */
     struct DriverPluginHostApi {
         void* host_context = nullptr;
-        double (*query_channel_path_value)(void* host_context, const char* channel_path, double default_value) = nullptr;
-        void (*upsert_channel_path_value)(void* host_context, const char* channel_path, double value) = nullptr;
+        double (*query_channel_value)(void* host_context, const char* channel_name, double default_value) = nullptr;
+        void (*upsert_channel_value)(void* host_context, const char* channel_name, double value) = nullptr;
         bool (*register_periodic_task)(void* host_context, const DriverPeriodicTaskRegistration* registration) = nullptr;
         bool (*register_state_machine_task)(void* host_context, const DriverStateMachineTaskRegistration* registration) = nullptr;
         bool (*register_dcode_function)(void* host_context, const char* function_name, const char* doc, const char* input_arguments_json, const char* output_arguments_json, void* function_context, const char* (*callback)(void* function_context, const char* payload_json)) = nullptr;
@@ -221,7 +226,6 @@ namespace DARTWIC::API {
     public:
         virtual ~TaskRuntime() = default;
 
-        virtual const std::string& getPortalName() const = 0;
         virtual const std::string& getTaskName() const = 0;
         virtual const std::string& getTaskType() const = 0;
         virtual const nlohmann::json& getMetadata() const = 0;
@@ -357,14 +361,12 @@ namespace DARTWIC::API {
          * Reads a typed field and returns the supplied default when the field is unavailable.
          * @dartwic-reference
          * @category Channels
-         * @param portal Portal containing the channel.
-         * @param channel Channel name within the portal.
+         * @param channel Flat channel name.
          * @param field Field to read.
          * @param default_value Value used when the field is unavailable.
          * @returns The numeric field value.
          */
-        virtual double queryChannelField(const std::string& portal,
-            const std::string& channel,
+        virtual double queryChannelField(const std::string& channel,
             ChannelField field,
             std::optional<ChannelValue> default_value) = 0;
 
@@ -372,13 +374,11 @@ namespace DARTWIC::API {
          * Inserts a channel field and fails when the addressed channel or field already exists.
          * @dartwic-reference
          * @category Channels
-         * @param portal Portal containing the channel.
-         * @param channel Channel name within the portal.
+         * @param channel Flat channel name.
          * @param field Field to insert.
          * @param value Initial field value.
          */
-        virtual void insertChannelField(const std::string& portal,
-            const std::string& channel,
+        virtual void insertChannelField(const std::string& channel,
             ChannelField field,
             ChannelValue value) = 0;
 
@@ -386,13 +386,11 @@ namespace DARTWIC::API {
          * Creates or replaces a field on a RAPID channel.
          * @dartwic-reference
          * @category Channels
-         * @param portal Portal containing the channel.
-         * @param channel Channel name within the portal.
+         * @param channel Flat channel name.
          * @param field Field to write.
          * @param value New field value.
          */
-        virtual void upsertChannelField(const std::string& portal,
-            const std::string& channel,
+        virtual void upsertChannelField(const std::string& channel,
             ChannelField field,
             ChannelValue value) = 0;
 
@@ -400,11 +398,10 @@ namespace DARTWIC::API {
          * Removes a channel and its associated field data.
          * @dartwic-reference
          * @category Channels
-         * @param portal Portal containing the channel.
          * @param channel Channel to remove.
          * @returns Whether a channel was removed.
          */
-        virtual bool removeChannel(const std::string& portal, const std::string& channel) = 0;
+        virtual bool removeChannel(const std::string& channel) = 0;
 
         /**
          * Registers a plugin-local module type and returns its qualified identifier.
@@ -506,12 +503,10 @@ namespace DARTWIC::API {
          * Writes timestamped numeric samples to one channel in a single call.
          * @dartwic-reference
          * @category Channels
-         * @param portal Portal containing the channel.
          * @param channel Channel receiving the samples.
          * @param data Value and Unix-nanosecond timestamp pairs.
          */
-        virtual void upsertChannelValueBulk(const std::string& portal,
-            const std::string& channel,
+        virtual void upsertChannelValueBulk(const std::string& channel,
             const std::vector<std::pair<double, uint64_t>>& data) = 0;
 
         /**
@@ -528,32 +523,32 @@ namespace DARTWIC::API {
          * Commands a channel while using the active task or loop as controller.
          * @dartwic-reference
          * @category Channel Authority
-         * @param channel_path Qualified `portal/channel` path.
+         * @param channel Flat channel name.
          * @param value Commanded value.
          */
-        virtual void commandChannel(const std::string& channel_path, ChannelValue value) = 0;
+        virtual void commandChannel(const std::string& channel, ChannelValue value) = 0;
         /**
          * Sets the active controller's value without issuing a manual command.
          * @dartwic-reference
          * @category Channel Authority
-         * @param channel_path Qualified `portal/channel` path.
+         * @param channel Flat channel name.
          * @param value Optional value; null clears the controller value.
          */
-        virtual void setChannel(const std::string& channel_path, std::optional<ChannelValue> value = std::nullopt) = 0;
+        virtual void setChannel(const std::string& channel, std::optional<ChannelValue> value = std::nullopt) = 0;
         /**
          * Claims channel authority for the active task or loop controller.
          * @dartwic-reference
          * @category Channel Authority
-         * @param channel_path Qualified `portal/channel` path.
+         * @param channel Flat channel name.
          */
-        virtual void claimChannel(const std::string& channel_path) = 0;
+        virtual void claimChannel(const std::string& channel) = 0;
         /**
          * Releases authority previously claimed by the active controller.
          * @dartwic-reference
          * @category Channel Authority
-         * @param channel_path Qualified `portal/channel` path.
+         * @param channel Flat channel name.
          */
-        virtual void freeChannel(const std::string& channel_path) = 0;
+        virtual void freeChannel(const std::string& channel) = 0;
     };
 }
 

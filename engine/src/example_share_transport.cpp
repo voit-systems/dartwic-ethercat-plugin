@@ -78,9 +78,9 @@ void ExampleShareTransport::start(ReceiveHandler receive) {
         return;
     }
     impl_->receive({
-        {"version", 2}, {"type", "hello"}, {"node_name", impl_->node_name},
+        {"version", 4}, {"type", "hello"}, {"node_name", impl_->node_name},
         {"channels", nlohmann::json::array({{
-            {"portal", "telemetry"}, {"channel", "heartbeat"},
+            {"channel", "telemetry_heartbeat"},
             {"channel_data", {{"value", 1.0}, {"timestamp", uint64_t{1}}, {"units", "count"}}}
         }})},
         {"events", nlohmann::json::array()}

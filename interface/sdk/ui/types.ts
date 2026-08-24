@@ -202,7 +202,7 @@ export interface DialogFooterProps extends HostComponentProps {}
  * @category DARTWIC UI Components
  */
 export interface ChannelComboBoxProps extends HostComponentProps {
-    /** Initial `portal/channel.field` selection. */
+    /** Initial `|channel|` or `|channel|:field` selection. */
     initialValue?: string;
     /** Controlled selection override. */
     overrideValue?: string;
