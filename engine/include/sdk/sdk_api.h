@@ -108,6 +108,7 @@ namespace DARTWIC::API {
     struct ChannelCalculationLink {
         std::string script;
         std::string relationship;
+        uint32_t line_number = 0;
     };
 
     /**
