@@ -239,7 +239,11 @@ async function main() {
     await verifyInterfaceOutput(pluginId);
   }
 
-  await runCommand(getNpmCommand(), ["run", "verify:package"]);
+  await runCommand(getNpmCommand(), [
+    "run",
+    "verify:package",
+    ...(debug ? ["--", "--debug"] : []),
+  ]);
 
   const archivePath = await createPluginArchive(debug);
 

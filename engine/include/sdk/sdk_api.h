@@ -243,6 +243,9 @@ namespace DARTWIC::API {
         virtual std::shared_ptr<void> getRuntimeContext(const std::string& key) const = 0;
         virtual void removeRuntimeContext(const std::string& key) = 0;
         virtual void clearRuntimeContext() = 0;
+        // Keep new virtual functions appended so plugins built against the previous
+        // TaskRuntime vtable retain the indices of all existing functions.
+        virtual void setFixedInputChannels(std::vector<std::string> channels) = 0;
 
         template <typename T>
         void setTypedRuntimeContext(const std::string& key, const std::shared_ptr<T>& value) {

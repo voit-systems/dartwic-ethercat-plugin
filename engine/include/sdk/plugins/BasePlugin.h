@@ -1,6 +1,7 @@
 #ifndef BASEPLUGIN_H
 #define BASEPLUGIN_H
 
+#include <cstdint>
 #include <modules/BaseModule.h>
 #include <nlohmann/json.hpp>
 #include <string>
@@ -12,7 +13,15 @@
 #define DARTWIC_PLUGIN_EXPORT extern "C" __attribute__((visibility("default")))
 #endif
 
+#define DARTWIC_PLUGIN_DECLARE_SDK_ABI() \
+    DARTWIC_PLUGIN_EXPORT std::uint32_t dartwicEnginePluginSdkAbiVersion() { \
+        return DARTWIC::Plugins::ENGINE_PLUGIN_SDK_ABI_VERSION; \
+    }
+
 namespace DARTWIC::Plugins {
+    // Increment whenever a public engine-plugin C++ type changes layout or vtable order.
+    inline constexpr std::uint32_t ENGINE_PLUGIN_SDK_ABI_VERSION = 1;
+
     /**
      * Root object implemented by an engine plugin.
      *

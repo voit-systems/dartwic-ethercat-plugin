@@ -50,10 +50,11 @@ async function main() {
     process.stdout.write(`Verified standalone plugin source '${pluginId}' and its bundled SDK snapshots.\n`);
     return;
   }
-  const {engineReleaseDir, interfaceDir} = getPluginSidePaths(pluginId);
+  const {engineReleaseDir, engineDebugDir, interfaceDir} = getPluginSidePaths(pluginId);
+  const engineDir = process.argv.includes("--debug") ? engineDebugDir : engineReleaseDir;
 
   if (manifest.contains_engine_plugin) {
-    validatePluginManifest(await readJson(path.resolve(engineReleaseDir, "plugin.json")));
+    validatePluginManifest(await readJson(path.resolve(engineDir, "plugin.json")));
   }
 
   if (manifest.contains_interface_plugin) {
