@@ -111,6 +111,11 @@ namespace DARTWIC::API {
         uint32_t line_number = 0;
     };
 
+    enum class ChannelStorage {
+        Dynamic,
+        Fixed
+    };
+
     /**
      * Value types accepted by channel read, write, and authority APIs.
      *
@@ -181,7 +186,7 @@ namespace DARTWIC::API {
     };
 
     /**
-     * Driver runtime host ABI. This ABI intentionally has no legacy grouping or path fields.
+     * Driver runtime host ABI. This ABI accepts only flat channel names and typed fields.
      *
      * @dartwic-reference-exclude driver-descoped
      */
@@ -264,6 +269,7 @@ namespace DARTWIC::API {
      * @category Tasks and Loops
      */
     using TaskLoopFunction = std::function<void(const TaskTypeDefinition&, TaskRuntime&, double)>;
+    using TaskMissedFunction = std::function<void(const TaskTypeDefinition&, TaskRuntime&, uint64_t, double)>;
     /**
      * Callback used to release runtime state after task execution ends.
      *
@@ -280,8 +286,10 @@ namespace DARTWIC::API {
      */
     struct TaskTypeDefinition {
         TaskTypeMetadata metadata;
+        TaskLifecycleFunction on_configure;
         TaskLifecycleFunction on_start;
         TaskLoopFunction on_task;
+        TaskMissedFunction on_missed;
         TaskLifecycleFunction on_end;
         TaskCleanupFunction cleanup;
     };
@@ -381,7 +389,8 @@ namespace DARTWIC::API {
          */
         virtual void insertChannelField(const std::string& channel,
             ChannelField field,
-            ChannelValue value) = 0;
+            ChannelValue value,
+            ChannelStorage storage = ChannelStorage::Dynamic) = 0;
 
         /**
          * Creates or replaces a field on a RAPID channel.
@@ -393,7 +402,8 @@ namespace DARTWIC::API {
          */
         virtual void upsertChannelField(const std::string& channel,
             ChannelField field,
-            ChannelValue value) = 0;
+            ChannelValue value,
+            ChannelStorage storage = ChannelStorage::Dynamic) = 0;
 
         /**
          * Removes a channel and its associated field data.
