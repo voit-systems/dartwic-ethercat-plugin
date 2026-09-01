@@ -37,6 +37,17 @@ set(ENGINE_PLUGIN_DIR "${PROJECT_SOURCE_DIR}/plugin/${ENGINE_PLUGIN_VARIANT}/${E
 file(GLOB_RECURSE EXAMPLE_ENGINE_SOURCES "${ENGINE_DIR}/src/*.cpp")
 add_library(example_device_plugin_engine SHARED ${EXAMPLE_ENGINE_SOURCES})
 
+get_filename_component(DARTWIC_REPOSITORY_ROOT "${PROJECT_SOURCE_DIR}/../.." ABSOLUTE)
+if(NOT TARGET DARTWICShareProtocol)
+    if(EXISTS "${DARTWIC_REPOSITORY_ROOT}/sdk/dartwic-share-protocol/CMakeLists.txt")
+        add_subdirectory(
+            "${DARTWIC_REPOSITORY_ROOT}/sdk/dartwic-share-protocol"
+            "${CMAKE_CURRENT_BINARY_DIR}/dartwic-share-protocol")
+    else()
+        message(FATAL_ERROR "The example Share transport requires the DARTWICShareProtocol package.")
+    endif()
+endif()
+
 file(GLOB ENGINE_INCLUDE_DIRS
         CONFIGURE_DEPENDS
         LIST_DIRECTORIES true
@@ -51,7 +62,9 @@ find_package(cppzmq CONFIG REQUIRED)
 
 target_link_libraries(example_device_plugin_engine PRIVATE
         nlohmann_json::nlohmann_json)
-target_link_libraries(example_device_plugin_engine PRIVATE cppzmq)
+target_link_libraries(example_device_plugin_engine PRIVATE
+        cppzmq
+        DARTWIC::ShareProtocol)
 
 set_target_properties(example_device_plugin_engine PROPERTIES
         OUTPUT_NAME "${ENGINE_PLUGIN_ID}"

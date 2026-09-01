@@ -7,7 +7,7 @@ namespace Example {
             .name = "Example Device"
         });
 
-        dartwic->registerShareType({
+        dartwic->registerShareTransport({
             .id = "example_flight_link",
             .name = "Example Flight Link",
             .default_config = {

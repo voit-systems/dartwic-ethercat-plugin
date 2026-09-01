@@ -20,7 +20,7 @@
 
 namespace DARTWIC::Plugins {
     // Increment whenever a public engine-plugin C++ type changes layout or vtable order.
-    inline constexpr std::uint32_t ENGINE_PLUGIN_SDK_ABI_VERSION = 1;
+    inline constexpr std::uint32_t ENGINE_PLUGIN_SDK_ABI_VERSION = 2;
 
     /**
      * Root object implemented by an engine plugin.

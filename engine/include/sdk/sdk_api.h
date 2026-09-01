@@ -11,34 +11,15 @@
 #include <variant>
 #include <vector>
 
+#include <dartwic/share/DARTWICShareTransport.h>
+
 namespace DARTWIC::Modules {
     class BaseModule;
 }
 
 namespace DARTWIC::API {
-    /**
-     * Engine-side link used by a Share type.
-     *
-     * A Share type only moves complete JSON frames. The engine owns RAPID and
-     * ARGUS synchronization, routing, diagnostics, and protocol semantics.
-     */
-    class ShareTransport {
-    public:
-        using ReceiveHandler = std::function<void(nlohmann::json frame)>;
-
-        virtual ~ShareTransport() = default;
-        virtual void start(ReceiveHandler receive) = 0;
-        virtual bool send(const nlohmann::json& frame) = 0;
-        virtual bool sendBatch(const std::vector<nlohmann::json>& frames) {
-            for (const auto& frame : frames) {
-                if (!send(frame)) return false;
-            }
-            return true;
-        }
-        virtual void stop() = 0;
-    };
-
-    using ShareTransportPtr = std::shared_ptr<ShareTransport>;
+    using ShareTransport = DARTWIC::Share::ShareTransport;
+    using ShareTransportPtr = DARTWIC::Share::ShareTransportPtr;
 
     /**
      * Execution shape used by a registered task type.
@@ -329,7 +310,7 @@ namespace DARTWIC::API {
      * DARTWICShare continues to own channel/event synchronization and routing;
      * the factory only creates the network link used by a configured connection.
      */
-    struct ShareTypeDefinition {
+    struct ShareTransportDefinition {
         std::string id;
         std::string name;
         nlohmann::json default_config = nlohmann::json::object();
@@ -425,7 +406,7 @@ namespace DARTWIC::API {
          * @returns The plugin-qualified module type identifier.
          */
         virtual std::string registerModuleType(ModuleTypeDefinition definition) = 0;
-        virtual std::string registerShareType(ShareTypeDefinition definition) = 0;
+        virtual std::string registerShareTransport(ShareTransportDefinition definition) = 0;
         /**
          * Registers a plugin-local task type and returns its qualified identifier.
          * @dartwic-reference
@@ -563,6 +544,27 @@ namespace DARTWIC::API {
          * @param channel Flat channel name.
          */
         virtual void freeChannel(const std::string& channel) = 0;
+
+        /**
+         * Creates or refreshes a correlated ARGUS event from a JSON declaration.
+         *
+         * Supported fields include type, title, description, resolution, system,
+         * subsystem, channels, actions, payload, correlation_key, and
+         * auto_acknowledge_seconds. A stable correlation_key updates one event
+         * instead of creating a new event for each heartbeat.
+         *
+         * @dartwic-reference
+         * @category Events
+         * @returns The complete accepted ARGUS event record.
+         */
+        virtual nlohmann::json recordEvent(nlohmann::json event) { return nlohmann::json::object(); }
+
+        /** Updates the lifecycle status of an ARGUS event by event identifier. */
+        virtual bool updateEventStatus(const std::string& event_id, const std::string& status) {
+            (void)event_id;
+            (void)status;
+            return false;
+        }
     };
 }
 

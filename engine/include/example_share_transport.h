@@ -17,8 +17,11 @@ public:
     explicit ExampleShareTransport(nlohmann::json config);
     ~ExampleShareTransport() override;
 
-    void start(ReceiveHandler receive) override;
-    bool send(const nlohmann::json& frame) override;
+    void start(DARTWIC::Share::TransportCallbacks callbacks) override;
+    DARTWIC::Share::Response request(const DARTWIC::Share::Request& request,
+        std::chrono::milliseconds timeout) override;
+    void publish(const DARTWIC::Share::Telemetry& telemetry) override;
+    void control(const DARTWIC::Share::Control& control) override;
     void stop() override;
 
     uint64_t receivedCount() const;
