@@ -2,6 +2,7 @@ name: CI
 
 on:
   push:
+    branches: [main]
   pull_request:
 
 jobs:
@@ -58,3 +59,43 @@ jobs:
           npm ci
           npm run build:interface
           npm run verify
+
+  windows-kickcat-bridge:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            git
+            make
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-ninja
+      - name: Bootstrap vcpkg
+        shell: pwsh
+        run: |
+          git clone --depth 1 https://github.com/microsoft/vcpkg.git "$env:RUNNER_TEMP/vcpkg"
+          & "$env:RUNNER_TEMP/vcpkg/bootstrap-vcpkg.bat" -disableMetrics
+          "VCPKG_ROOT=$env:RUNNER_TEMP/vcpkg" | Out-File -FilePath $env:GITHUB_ENV -Append
+      - name: Install MinGW bridge dependencies
+        shell: msys2 {0}
+        run: |
+          "$VCPKG_ROOT/vcpkg.exe" install \
+            --triplet x64-mingw-dynamic \
+            --x-manifest-root="$PWD/bridge" \
+            --x-install-root="$PWD/build/bridge-vcpkg"
+      - name: Build the Windows KickCAT C bridge
+        shell: msys2 {0}
+        run: |
+          cmake -S bridge -B build/bridge-windows -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER=gcc \
+            -DCMAKE_CXX_COMPILER=g++ \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_TARGET_TRIPLET=x64-mingw-dynamic \
+            -DVCPKG_INSTALLED_DIR="$PWD/build/bridge-vcpkg"
+          cmake --build build/bridge-windows
+          test -f build/bridge-windows/dartwic_ethercat_bridge.dll
