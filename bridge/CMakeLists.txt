@@ -20,7 +20,7 @@ set(ENABLE_AF_XDP OFF CACHE BOOL "" FORCE)
 set(KICKCAT_INSTALL OFF CACHE BOOL "" FORCE)
 
 FetchContent_Declare(kickcat
-    GIT_REPOSITORY https://github.com/kickcat-project/kickcat.git
+    GIT_REPOSITORY https://github.com/leducp/KickCAT.git
     GIT_TAG f10386d54f734d388a405b4dae506801e35c238b
     GIT_SHALLOW FALSE)
 FetchContent_MakeAvailable(kickcat)

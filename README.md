@@ -59,7 +59,7 @@ Set `VCPKG_ROOT` before using the presets. On Linux, use `linux-clang-release` a
 
 ## Build the KickCAT C bridge
 
-KickCAT is pinned to commit `f10386d54f734d388a405b4dae506801e35c238b` (`v2.6-rc3`). It is fetched by the bridge CMake project.
+KickCAT is fetched from [`leducp/KickCAT`](https://github.com/leducp/KickCAT) and pinned to commit `f10386d54f734d388a405b4dae506801e35c238b` (`v2.6-rc3`).
 
 Linux:
 
