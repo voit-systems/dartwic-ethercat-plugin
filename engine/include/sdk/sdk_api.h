@@ -6,18 +6,23 @@
 #include <memory>
 #include <nlohmann/json.hpp>
 #include <optional>
+#include <span>
 #include <string>
 #include <utility>
 #include <variant>
 #include <vector>
 
-#include <dartwic/share/DARTWICShareTransport.h>
+namespace DARTWIC::Share {
+    class ShareTransport;
+    using ShareTransportPtr = std::shared_ptr<ShareTransport>;
+}
 
 namespace DARTWIC::Modules {
     class BaseModule;
 }
 
 namespace DARTWIC::API {
+    /** DARTWIC Share Protocol transport SPI used by engine Share transports. */
     using ShareTransport = DARTWIC::Share::ShareTransport;
     using ShareTransportPtr = DARTWIC::Share::ShareTransportPtr;
 
@@ -98,6 +103,28 @@ namespace DARTWIC::API {
     };
 
     /**
+     * Stable, pre-resolved address of a fixed RAPID channel.
+     *
+     * Handles are intentionally opaque to plugins. Resolve them during task setup and
+     * reuse them in high-frequency callbacks to avoid channel-name lookup overhead.
+     */
+    struct FixedChannelHandle {
+        uint32_t slot = 0;
+        uint64_t binding_generation = 0;
+
+        [[nodiscard]] bool valid() const noexcept { return binding_generation != 0; }
+    };
+
+    /** Ordered channel names and handles used by the fixed-channel batch APIs. */
+    struct FixedChannelBatch {
+        std::vector<std::string> channels;
+        std::vector<FixedChannelHandle> handles;
+
+        [[nodiscard]] size_t size() const noexcept { return handles.size(); }
+        [[nodiscard]] bool empty() const noexcept { return handles.empty(); }
+    };
+
+    /**
      * Value types accepted by channel read, write, and authority APIs.
      *
      * @dartwic-reference
@@ -135,52 +162,6 @@ namespace DARTWIC::API {
         std::string type;
         std::string doc;
         bool required = false;
-    };
-
-    /**
-     * Driver-host periodic task ABI.
-     *
-     * @dartwic-reference-exclude driver-descoped
-     */
-    struct DriverPeriodicTaskRegistration {
-        const char* task_type = nullptr;
-        const char* task_name = nullptr;
-        void* context = nullptr;
-        void (*on_start)(void* context, double elapsed_seconds) = nullptr;
-        void (*on_task)(void* context, double elapsed_seconds) = nullptr;
-        void (*on_end)(void* context, double elapsed_seconds) = nullptr;
-    };
-
-    /**
-     * Driver-host state-machine task ABI.
-     *
-     * @dartwic-reference-exclude driver-descoped
-     */
-    struct DriverStateMachineTaskRegistration {
-        const char* task_type = nullptr;
-        const char* task_name = nullptr;
-        const char* states_json = nullptr;
-        void* context = nullptr;
-        void (*on_start)(void* context, double elapsed_seconds) = nullptr;
-        void (*on_task)(void* context, double elapsed_seconds) = nullptr;
-        void (*on_end)(void* context, double elapsed_seconds) = nullptr;
-    };
-
-    /**
-     * Driver runtime host ABI. This ABI accepts only flat channel names and typed fields.
-     *
-     * @dartwic-reference-exclude driver-descoped
-     */
-    struct DriverPluginHostApi {
-        void* host_context = nullptr;
-        double (*query_channel_value)(void* host_context, const char* channel_name, double default_value) = nullptr;
-        void (*upsert_channel_value)(void* host_context, const char* channel_name, double value) = nullptr;
-        bool (*register_periodic_task)(void* host_context, const DriverPeriodicTaskRegistration* registration) = nullptr;
-        bool (*register_state_machine_task)(void* host_context, const DriverStateMachineTaskRegistration* registration) = nullptr;
-        bool (*register_dcode_function)(void* host_context, const char* function_name, const char* doc, const char* input_arguments_json, const char* output_arguments_json, void* function_context, const char* (*callback)(void* function_context, const char* payload_json)) = nullptr;
-        const char* (*call_dcode_function)(void* host_context, const char* function_name, const char* payload_json) = nullptr;
-        void (*free_json_string)(void* host_context, const char* value) = nullptr;
-        void (*log_message)(void* host_context, const char* message) = nullptr;
     };
 
     struct TaskTypeDefinition;
@@ -555,6 +536,12 @@ namespace DARTWIC::API {
          *
          * @dartwic-reference
          * @category Events
+         * Optional `graphs` accepts an array of graph groups. Each group may be an array of shorthand
+         * strings or an object with a `series` array and optional `title` / `window_seconds` fields.
+         * Shorthand series use `|channel|`, `>value`, `>=value`, `<value`, `<=value`, or `=value` and
+         * may append `@1` through `@5` to select a Y axis. Object series accept `channel_reference`
+         * (or `expression`) plus `y_axis`, `label`, and `color`. For example:
+         * `{"graphs":[["|temperature|@1",">100@1"],["|pressure|@1","=50@2"]]}`.
          * @returns The complete accepted ARGUS event record.
          */
         virtual nlohmann::json recordEvent(nlohmann::json event) { return nlohmann::json::object(); }
@@ -565,6 +552,22 @@ namespace DARTWIC::API {
             (void)status;
             return false;
         }
+
+        /**
+         * Resolves fixed channels once for allocation-free access in periodic task callbacks.
+         * Throws when a name is missing or does not refer to fixed storage.
+         */
+        virtual FixedChannelBatch resolveFixedChannels(const std::vector<std::string>& channels) = 0;
+
+        /** Reads a coherent task-input snapshot into caller-owned storage. */
+        virtual void queryFixedChannelValues(const FixedChannelBatch& batch,
+            std::span<double> destination,
+            double default_value = 0.0) = 0;
+
+        /** Stages one value per fixed channel in the current task transaction. */
+        virtual void upsertFixedChannelValues(const FixedChannelBatch& batch,
+            std::span<const double> values,
+            std::optional<uint64_t> timestamp = std::nullopt) = 0;
     };
 }
 

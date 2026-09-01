@@ -41,7 +41,8 @@ async function main() {
   if (process.argv.includes("--source-only")) {
     const requiredSources = [
       path.resolve("CMakeLists.txt"),
-      path.resolve("engine", "src", "example_device_plugin.cpp"),
+      path.resolve("engine", "src", "ethercat_plugin.cpp"),
+      path.resolve("bridge", "src", "dartwic_ethercat_bridge.cpp"),
       path.resolve("interface", "src", "runtime-entry.jsx"),
     ];
     const missing = [];
@@ -59,7 +60,7 @@ async function main() {
 
   if (manifest.contains_interface_plugin) {
     const runtime = await materializeInterfacePlugin(pluginId, path.resolve(interfaceDir, "ui", "index.js"));
-    if (!runtime?.contributions?.interface || !runtime?.moduleUis?.[`${pluginId}.example_device`]) {
+    if (!runtime?.contributions?.interface || !runtime?.moduleUis?.[`${pluginId}.master`]) {
       throw new Error("Packaged interface runtime did not materialize the expected live registry.");
     }
   }

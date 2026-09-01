@@ -1,20 +1,16 @@
 cmake_minimum_required(VERSION 3.20)
-project(example_device_plugin)
+project(dartwic_ethercat_plugin)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
-
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 
 set(ENGINE_DIR "${PROJECT_SOURCE_DIR}/engine")
 set(PLUGIN_MANIFEST_FILE "${PROJECT_SOURCE_DIR}/plugin.json")
-
-set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
-        "${PLUGIN_MANIFEST_FILE}")
-
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${PLUGIN_MANIFEST_FILE}")
 file(READ "${PLUGIN_MANIFEST_FILE}" PLUGIN_MANIFEST_JSON)
 string(JSON ENGINE_PLUGIN_ID GET "${PLUGIN_MANIFEST_JSON}" id)
 string(JSON MIN_ENGINE_VERSION GET "${PLUGIN_MANIFEST_JSON}" minEngineVersion)
@@ -31,76 +27,67 @@ set(ENGINE_PLUGIN_VARIANT "engine")
 if(NORMALIZED_BUILD_TYPE STREQUAL "debug")
     set(ENGINE_PLUGIN_VARIANT "engine-debug")
 endif()
-
 set(ENGINE_PLUGIN_DIR "${PROJECT_SOURCE_DIR}/plugin/${ENGINE_PLUGIN_VARIANT}/${ENGINE_PLUGIN_ID}")
 
-file(GLOB_RECURSE EXAMPLE_ENGINE_SOURCES "${ENGINE_DIR}/src/*.cpp")
-add_library(example_device_plugin_engine SHARED ${EXAMPLE_ENGINE_SOURCES})
-
-get_filename_component(DARTWIC_REPOSITORY_ROOT "${PROJECT_SOURCE_DIR}/../.." ABSOLUTE)
-if(NOT TARGET DARTWICShareProtocol)
-    if(EXISTS "${DARTWIC_REPOSITORY_ROOT}/sdk/dartwic-share-protocol/CMakeLists.txt")
-        add_subdirectory(
-            "${DARTWIC_REPOSITORY_ROOT}/sdk/dartwic-share-protocol"
-            "${CMAKE_CURRENT_BINARY_DIR}/dartwic-share-protocol")
-    else()
-        message(FATAL_ERROR "The example Share transport requires the DARTWICShareProtocol package.")
-    endif()
-endif()
-
-file(GLOB ENGINE_INCLUDE_DIRS
-        CONFIGURE_DEPENDS
-        LIST_DIRECTORIES true
-        "${ENGINE_DIR}/include/*")
-
-target_include_directories(example_device_plugin_engine PRIVATE
-        "${ENGINE_DIR}/include"
-        ${ENGINE_INCLUDE_DIRS})
+set(ETHERCAT_ENGINE_SOURCES
+    "${ENGINE_DIR}/src/ethercat_bridge_loader.cpp"
+    "${ENGINE_DIR}/src/ethercat_codec.cpp"
+    "${ENGINE_DIR}/src/ethercat_module.cpp"
+    "${ENGINE_DIR}/src/ethercat_plugin.cpp")
+add_library(dartwic_ethercat_plugin_engine SHARED ${ETHERCAT_ENGINE_SOURCES})
+file(GLOB ENGINE_INCLUDE_DIRS CONFIGURE_DEPENDS LIST_DIRECTORIES true "${ENGINE_DIR}/include/*")
+target_include_directories(dartwic_ethercat_plugin_engine PRIVATE "${ENGINE_DIR}/include" ${ENGINE_INCLUDE_DIRS})
 
 find_package(nlohmann_json CONFIG REQUIRED)
-find_package(cppzmq CONFIG REQUIRED)
+target_link_libraries(dartwic_ethercat_plugin_engine PRIVATE nlohmann_json::nlohmann_json)
+if(UNIX AND NOT APPLE)
+    target_link_libraries(dartwic_ethercat_plugin_engine PRIVATE dl)
+endif()
 
-target_link_libraries(example_device_plugin_engine PRIVATE
-        nlohmann_json::nlohmann_json)
-target_link_libraries(example_device_plugin_engine PRIVATE
-        cppzmq
-        DARTWIC::ShareProtocol)
-
-set_target_properties(example_device_plugin_engine PROPERTIES
-        OUTPUT_NAME "${ENGINE_PLUGIN_ID}"
-        RUNTIME_OUTPUT_DIRECTORY "${ENGINE_PLUGIN_DIR}/bin"
-        RUNTIME_OUTPUT_DIRECTORY_DEBUG "${ENGINE_PLUGIN_DIR}/bin"
-        RUNTIME_OUTPUT_DIRECTORY_RELEASE "${ENGINE_PLUGIN_DIR}/bin"
-        LIBRARY_OUTPUT_DIRECTORY "${ENGINE_PLUGIN_DIR}/bin"
-        LIBRARY_OUTPUT_DIRECTORY_DEBUG "${ENGINE_PLUGIN_DIR}/bin"
-        LIBRARY_OUTPUT_DIRECTORY_RELEASE "${ENGINE_PLUGIN_DIR}/bin"
-        PDB_OUTPUT_DIRECTORY "${ENGINE_PLUGIN_DIR}/bin"
-        PDB_OUTPUT_DIRECTORY_DEBUG "${ENGINE_PLUGIN_DIR}/bin"
-        PDB_OUTPUT_DIRECTORY_RELEASE "${ENGINE_PLUGIN_DIR}/bin")
+set_target_properties(dartwic_ethercat_plugin_engine PROPERTIES
+    OUTPUT_NAME "${ENGINE_PLUGIN_ID}"
+    RUNTIME_OUTPUT_DIRECTORY "${ENGINE_PLUGIN_DIR}/bin"
+    RUNTIME_OUTPUT_DIRECTORY_DEBUG "${ENGINE_PLUGIN_DIR}/bin"
+    RUNTIME_OUTPUT_DIRECTORY_RELEASE "${ENGINE_PLUGIN_DIR}/bin"
+    LIBRARY_OUTPUT_DIRECTORY "${ENGINE_PLUGIN_DIR}/bin"
+    LIBRARY_OUTPUT_DIRECTORY_DEBUG "${ENGINE_PLUGIN_DIR}/bin"
+    LIBRARY_OUTPUT_DIRECTORY_RELEASE "${ENGINE_PLUGIN_DIR}/bin"
+    PDB_OUTPUT_DIRECTORY "${ENGINE_PLUGIN_DIR}/bin"
+    PDB_OUTPUT_DIRECTORY_DEBUG "${ENGINE_PLUGIN_DIR}/bin"
+    PDB_OUTPUT_DIRECTORY_RELEASE "${ENGINE_PLUGIN_DIR}/bin")
 
 set(ENGINE_PLUGIN_COPY_COMMANDS
-        COMMAND ${CMAKE_COMMAND} -E make_directory "${ENGINE_PLUGIN_DIR}"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${PLUGIN_MANIFEST_FILE}"
-        "${ENGINE_PLUGIN_DIR}/plugin.json"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${ENGINE_DIR}/src/module_config.json"
-        "${ENGINE_PLUGIN_DIR}/module_config.json"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${ENGINE_DIR}/src/default_parameters.json"
-        "${ENGINE_PLUGIN_DIR}/default_parameters.json"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${ENGINE_DIR}/src/share_config.json"
-        "${ENGINE_PLUGIN_DIR}/share_config.json")
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${ENGINE_PLUGIN_DIR}"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${PLUGIN_MANIFEST_FILE}" "${ENGINE_PLUGIN_DIR}/plugin.json"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${ENGINE_DIR}/src/module_config.json" "${ENGINE_PLUGIN_DIR}/module_config.json"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${ENGINE_DIR}/src/default_parameters.json" "${ENGINE_PLUGIN_DIR}/default_parameters.json")
 
-add_custom_target(example_device_plugin ALL
-        ${ENGINE_PLUGIN_COPY_COMMANDS}
-        DEPENDS example_device_plugin_engine
-        COMMENT "Copying engine plugin files")
+set(DARTWIC_ETHERCAT_BRIDGE_PATH "" CACHE FILEPATH "Optional prebuilt KickCAT C bridge copied beside the DARTWIC plugin")
+if(DARTWIC_ETHERCAT_BRIDGE_PATH)
+    if(NOT EXISTS "${DARTWIC_ETHERCAT_BRIDGE_PATH}")
+        message(FATAL_ERROR "DARTWIC_ETHERCAT_BRIDGE_PATH does not exist: ${DARTWIC_ETHERCAT_BRIDGE_PATH}")
+    endif()
+    list(APPEND ENGINE_PLUGIN_COPY_COMMANDS
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "${DARTWIC_ETHERCAT_BRIDGE_PATH}" "${ENGINE_PLUGIN_DIR}/bin/")
+endif()
 
-add_custom_target(copy_engine_plugin
-        DEPENDS example_device_plugin)
+add_custom_target(dartwic_ethercat_plugin ALL ${ENGINE_PLUGIN_COPY_COMMANDS}
+    DEPENDS dartwic_ethercat_plugin_engine COMMENT "Copying EtherCAT engine plugin files")
+add_custom_target(copy_engine_plugin DEPENDS dartwic_ethercat_plugin)
 
-message(STATUS "Example engine plugin dir: ${ENGINE_PLUGIN_DIR}")
-message(STATUS "Example engine plugin variant: ${ENGINE_PLUGIN_VARIANT}")
-message(STATUS "Using the bundled Engine SDK snapshot from engine/include/sdk.")
+option(DARTWIC_ETHERCAT_BUILD_TESTS "Build codec, bridge, and rate tests" ON)
+if(DARTWIC_ETHERCAT_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
+
+add_executable(ethercat_rate_test tools/ethercat_rate_test.cpp "${ENGINE_DIR}/src/ethercat_bridge_loader.cpp")
+target_include_directories(ethercat_rate_test PRIVATE "${ENGINE_DIR}/include")
+target_link_libraries(ethercat_rate_test PRIVATE nlohmann_json::nlohmann_json)
+if(UNIX AND NOT APPLE)
+    target_link_libraries(ethercat_rate_test PRIVATE dl)
+endif()
+
+message(STATUS "EtherCAT engine plugin dir: ${ENGINE_PLUGIN_DIR}")
+message(STATUS "EtherCAT engine plugin variant: ${ENGINE_PLUGIN_VARIANT}")
+message(STATUS "Using bundled Engine SDK snapshot from engine/include/sdk.")

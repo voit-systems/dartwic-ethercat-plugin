@@ -1,0 +1,12 @@
+{
+  "name": "dartwic-ethercat-kickcat-bridge",
+  "version-string": "0.1.0",
+  "dependencies": [
+    "nlohmann-json",
+    "tinyxml2",
+    {
+      "name": "npcap",
+      "platform": "windows"
+    }
+  ]
+}

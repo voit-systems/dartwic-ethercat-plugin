@@ -249,3 +249,21 @@ export interface ManualRefreshButtonProps extends ButtonProps {
     /** Shows the spinning refresh state and disables the button. */
     isRefreshing?: boolean;
 }
+
+/** Props for selecting a live module instance compatible with a plugin task. */
+export interface ModuleInstanceSelectProps extends HostComponentProps {
+    /** Engine plugin that must own every displayed module instance. */
+    pluginId: string;
+    /** Optional compatible module type IDs, in local or plugin-qualified form. */
+    moduleTypeIds?: string[];
+    /** Selected module-instance name. */
+    value?: string;
+    /** Called with the selected module-instance name. */
+    onValueChange?: (value: string) => void;
+    /** Empty-selection prompt. */
+    placeholder?: string;
+    /** Disables the selector. */
+    disabled?: boolean;
+    /** Shows loading, incompatibility, and empty-state diagnostics. */
+    showStatus?: boolean;
+}

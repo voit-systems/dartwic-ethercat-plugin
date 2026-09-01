@@ -1,3 +1,7 @@
 {
-  "host": "127.0.0.1"
+  "mode": "simulator",
+  "adapter": "",
+  "simulator_profile": "standard_io",
+  "receive_timeout_us": 500,
+  "bridge_path": ""
 }

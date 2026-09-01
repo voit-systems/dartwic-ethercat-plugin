@@ -1,6 +1,6 @@
 import { createHostComponent } from "../internal/createHostComponent.ts";
 import { getHostApi } from "../internal/host.ts";
-import type {ChannelComboBoxProps, ConfigurableInputProps, ManualRefreshButtonProps} from "./types.ts";
+import type {ChannelComboBoxProps, ConfigurableInputProps, ManualRefreshButtonProps, ModuleInstanceSelectProps} from "./types.ts";
 
 /** Selects a DARTWIC channel and, optionally, one of its fields. @dartwic-reference @category DARTWIC UI Components */
 export const ChannelComboBox = createHostComponent<ChannelComboBoxProps>("ChannelComboBox", (hostApi) => hostApi.helpers.ChannelComboBox);
@@ -8,6 +8,8 @@ export const ChannelComboBox = createHostComponent<ChannelComboBoxProps>("Channe
 export const ConfigurableInput = createHostComponent<ConfigurableInputProps>("ConfigurableInput", (hostApi) => hostApi.helpers.ConfigurableInput);
 /** Renders the standard refresh icon button with an in-progress state. @dartwic-reference @category DARTWIC UI Components */
 export const ManualRefreshButton = createHostComponent<ManualRefreshButtonProps>("ManualRefreshButton", (hostApi) => hostApi.helpers.ManualRefreshButton);
+/** Selects only module instances owned by the requested plugin and compatible module types. @dartwic-reference @category DARTWIC UI Components */
+export const ModuleInstanceSelect = createHostComponent<ModuleInstanceSelectProps>("ModuleInstanceSelect", (hostApi) => hostApi.helpers.ModuleInstanceSelect);
 
 /**
  * Converts a value reference such as `|channel|` into its channel name.
@@ -25,4 +27,4 @@ export function convertChannelReferenceToChannelName(value: string) {
     return String(convert(value));
 }
 
-export type {ChannelComboBoxProps, ConfigurableInputProps, ManualRefreshButtonProps} from "./types.ts";
+export type {ChannelComboBoxProps, ConfigurableInputProps, ManualRefreshButtonProps, ModuleInstanceSelectProps} from "./types.ts";

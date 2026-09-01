@@ -33,5 +33,5 @@ await build({
 
 await cp(sourceManifestPath, pluginManifestPath, {force: true});
 
-console.log(`Built example interface plugin from interface/src for ${pluginId}.`);
+console.log(`Built EtherCAT interface plugin from interface/src for ${pluginId}.`);
 console.log(`- ${releasePluginDir}`);

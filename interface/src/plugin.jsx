@@ -1,71 +1,20 @@
 import {definePlugin} from "../sdk/index.ts";
-import {ExampleModuleConfig} from "./moduleConfigs.jsx";
-import {ExamplePluginSettings} from "./pluginSettings.jsx";
-import {ExampleResource, ExampleSchematicNode} from "./resourcesAndSchematics.jsx";
-import {ExampleTaskCard} from "./taskCards.jsx";
-import {ExampleTaskConfig} from "./taskConfigs.jsx";
 import React from "../sdk/react.ts";
+import {EthercatModuleConfig} from "./moduleConfigs.jsx";
+import {EthercatTaskCard} from "./taskCards.jsx";
+import {EthercatTaskConfig} from "./taskConfigs.jsx";
 
-function ExampleDeviceIcon(props) {
-    return (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...props}>
-            <rect x="3" y="6" width="18" height="13" rx="2"/>
-            <path d="M8 3v3M16 3v3M8 11h8M8 15h4"/>
-        </svg>
-    );
-}
-
-function ExampleNotesIcon(props) {
-    return (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...props}>
-            <path d="M6 3h9l3 3v15H6z"/>
-            <path d="M15 3v4h4M9 12h6M9 16h6"/>
-        </svg>
-    );
+function EthercatIcon(props) {
+    return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...props}>
+        <path d="M3 7h5v10H3zM16 7h5v10h-5z"/><path d="M8 10h8M8 14h8M5 4v3M19 4v3M5 17v3M19 17v3"/>
+    </svg>;
 }
 
 export default definePlugin({
-    id: "example_device_plugin",
-    name: "Example Device Plugin",
+    id: "ethercat",
+    name: "EtherCAT",
     register(registry) {
-        registry.addTaskUi({
-            id: "example_task",
-            name: "Example Task UI",
-            card: ExampleTaskCard,
-            editor: ExampleTaskConfig,
-        });
-        registry.addModuleUi({
-            id: "example_device",
-            name: "Example Device",
-            icon: ExampleDeviceIcon,
-            panel: ExampleModuleConfig,
-        });
-        registry.addResource({
-            id: "example_notes",
-            name: "Example Notes",
-            label: "Example Notes",
-            type: "component",
-            icon: ExampleNotesIcon,
-            component: ExampleResource,
-            show_in_resource_tabs: true,
-        });
-        registry.addSchematicNode({
-            id: "example_indicator",
-            name: "Example Indicator",
-            component: ExampleSchematicNode,
-            dataDefaults: {label: "Example"},
-            palette: {
-                defaults: {
-                    width: 160,
-                    height: 72,
-                },
-            },
-            resizable: true,
-        });
-        registry.addSettingsPanel({
-            id: "general",
-            name: "Example Settings",
-            component: ExamplePluginSettings,
-        });
+        registry.addTaskUi({id: "cycle", name: "EtherCAT Cyclic I/O", card: EthercatTaskCard, editor: EthercatTaskConfig});
+        registry.addModuleUi({id: "master", name: "EtherCAT Master", icon: EthercatIcon, panel: EthercatModuleConfig});
     },
 });

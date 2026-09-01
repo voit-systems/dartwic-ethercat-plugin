@@ -1,35 +1,128 @@
-# DARTWIC 2.0 Example Plugin
+# DARTWIC EtherCAT Plugin
 
-This is a standalone, public plugin starter and a complete combined Engine/Interface example. It does not require access to the private DARTWIC source repository.
+High-speed cyclic EtherCAT I/O for DARTWIC 2.0. The plugin runs one synchronous, full-duplex process-data exchange per periodic task tick and is designed for a 1 ms (1 kHz) task period.
 
-Developers edit `plugin.json`, `engine/include`, `engine/src`, `interface/src`, and optional `files/`. The compatible Engine and Interface SDK snapshots are already bundled under `engine/include/sdk` and `interface/sdk`. They belong to this tagged example version and are not refreshed from a private checkout.
+The repository is standalone and does not contain or require the private DARTWIC source tree. Versioned Engine and Interface SDK snapshots are bundled for plugin development.
 
-Engine registration happens in `ExampleDevicePlugin::onPluginLoaded()` through `dartwic->registerModuleType`, `registerShareTransport`, `registerTaskType`, `registerOperation`, `registerDCodeFunction`, and `registerLoop`. IDs are local and become `<plugin-id>.<local-id>`. `createModule` receives the local module ID. The `example_flight_link` Share transport implements `DARTWIC::API::ShareTransport`: it moves complete DARTWIC Share frames and never registers separate RAPID, ARGUS, command, or bulk handlers. Its registration includes UI-editable default connection values. With `receive_endpoint` and `send_endpoint` configured it uses raw ZeroMQ without TEMPEST; without those fields it runs as the deterministic simulated transport used by the focused plugin test.
+## Architecture
 
-The interface uses `definePlugin({register})`. `addModuleUi` demonstrates both a React icon and a module configuration panel. The module config falls back to `workspace/global_data/plugin_icons/example-device.svg`, which is supplied through `files/`.
+The runtime is intentionally split at a C ABI boundary:
 
-Place every plugin-authored engine-root file under `files/`. This example includes a schematic-node JSON file at `files/workspace/global_data/schematic_nodes/device_examples/example_indicator.json`; packaging includes that tree and installation or local deployment mirrors it below the engine configuration root.
+```text
+DARTWIC periodic task (ClangCL / Clang)
+  ├─ batch snapshot fixed command channels
+  ├─ encode the complete output process image
+  ├─ call one synchronous C bridge exchange
+  ├─ decode the complete input process image
+  └─ batch-stage fixed telemetry channels
+                    │
+                    ▼
+dartwic_ethercat_bridge.dll / .so (GCC or MinGW GCC)
+                    │
+                    ▼
+        KickCAT master + NIC or simulator
+```
 
-## Setup
+No C++ objects cross the compiler boundary. The public bridge interface is `engine/include/dartwic_ethercat_bridge.h`, and `DW_EC_BRIDGE_ABI_VERSION` protects against incompatible binaries.
 
-Install the JavaScript dependency from this repository:
+One `ethercat.cycle` task exclusively owns one `ethercat.master` module while running. Reads and writes occur in the same EtherCAT frame cycle. There are no per-channel network operations, background command queues, or change-detection delays in the hot path.
+
+## Configuration
+
+1. Create an **EtherCAT Master** module.
+2. Select **KickCAT Simulator** or **Physical EtherCAT Adapter** from the dropdown.
+3. Create an **EtherCAT Cyclic I/O** periodic task and set its period to `1 ms` for 1 kHz operation.
+4. Select the master and click **Scan Bus**.
+5. Add mappings using the discovered slave/PDO dropdown, then select the corresponding RAPID channel.
+
+The first release uses the PDO layout already exposed by each slave. Dynamic PDO reassignment is deliberately out of scope. Stopping a task stops cyclic exchange; it does not overwrite the last process-output values with an assumed safe state.
+
+The built-in simulator exposes:
+
+- Outputs: `Command U32`, `Command F64`, and `Command Bool`.
+- Inputs: matching echo values plus `Cycle Counter`.
+
+It uses KickCAT's real master, EtherCAT state machine, process-image mapping, emulated ESC, and loopback transport in-process. It is not a mock of the plugin API.
+
+## Build the DARTWIC plugin
+
+Requirements: Node.js 20+, CMake 3.23+, a vcpkg checkout, and the same supported compiler used by DARTWIC (ClangCL on Windows or Clang on Linux).
 
 ```shell
 npm ci
+npm run build:interface
+cmake --preset windows-clang-release
+cmake --build --preset build-windows-clang-release --target copy_engine_plugin
 ```
 
-`npm run build` and `npm run verify` need only Node.js. Native Engine builds additionally require CMake, a supported C++ toolchain, and a vcpkg checkout containing the dependencies in `vcpkg.json`. Set `VCPKG_ROOT` to that checkout before running packaging or deployment commands.
+Set `VCPKG_ROOT` before using the presets. On Linux, use `linux-clang-release` and `build-linux-clang-release`.
 
-`npm run package` creates `plugin.zip` with `engine/`, `interface/`, and optional `files/`. `npm run package-debug` creates `plugin-debug.zip` with `engine-debug/`, `interface/`, and optional `files/`. These are local build outputs; the example repository's GitHub Releases are source tags with release notes and no manually uploaded binaries.
+## Build the KickCAT C bridge
 
-Commands:
+KickCAT is pinned to commit `f10386d54f734d388a405b4dae506801e35c238b` (`v2.6-rc3`). It is fetched by the bridge CMake project.
 
-- `npm run build` bundles the interface plugin.
-- `npm run verify` validates the standalone source, manifests, and bundled SDK snapshots from a clean clone.
-- `npm run verify:sdk` verifies only the bundled SDK snapshots.
-- `npm run package` builds, verifies, and creates the release `plugin.zip`.
-- `npm run package-debug` builds, verifies, and creates `plugin-debug.zip`.
-- `npm run deploy` builds both sides and copies them to your local DARTWIC installation.
-- `npm run deploy-debug` does the same with the debug Engine plugin.
+Linux:
 
-Deployment is optional and never assumes a DARTWIC source checkout. Set `DARTWIC_ENGINE_DIR` and `DARTWIC_INTERFACE_DIR`, or copy `deployment-settings.example.json` to the ignored `deployment-settings.json` file and configure your installation paths there.
+```shell
+cmake -S bridge -B build/bridge -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
+cmake --build build/bridge
+```
+
+Windows uses a POSIX MinGW-w64 GCC toolchain because KickCAT's Windows backend is built for that environment. It also requires Npcap for physical adapters:
+
+```shell
+cmake -S bridge -B build/bridge -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ \
+  -DVCPKG_TARGET_TRIPLET=x64-mingw-dynamic \
+  -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
+cmake --build build/bridge
+```
+
+Pass the resulting bridge to the plugin build so it is copied beside the plugin binary:
+
+```shell
+cmake --preset windows-clang-release \
+  -DDARTWIC_ETHERCAT_BRIDGE_PATH=/absolute/path/to/dartwic_ethercat_bridge.dll
+```
+
+Npcap must be installed on the target Windows machine because the Windows bridge contains KickCAT's Npcap backend. The simulator does not require EtherCAT hardware or a dedicated NIC.
+
+## Tests and 1 kHz rate check
+
+The standard native test suite covers unaligned PDO encoding, signed/scaled values, dynamic C bridge loading, ABI validation, full-duplex exchange, and a 20,000-cycle bridge throughput test:
+
+```shell
+ctest --test-dir build/windows-clang-release -C Release --output-on-failure
+```
+
+`ethercat_rate_test` runs the same synchronous exchange interface used by the plugin and reports mean/p99 exchange time and 1 ms deadline misses:
+
+```shell
+ethercat_rate_test --bridge /path/to/dartwic_ethercat_bridge.dll --cycles 10000 --period-us 1000
+```
+
+Run it first against the built-in simulator, then against the intended NIC and slave chain. A simulator pass validates software overhead and cadence; it does not prove the host OS, NIC driver, cabling, and physical slaves can sustain the same timing.
+
+The plugin publishes these fixed diagnostic channels per task:
+
+- `<task>.ethercat.exchange_time_us`
+- `<task>.ethercat.actual_wkc`
+- `<task>.ethercat.expected_wkc`
+- `<task>.ethercat.failure_count`
+
+Three consecutive exchange failures stop the task. Automatic reconnect is intentionally deferred so a control system does not silently resume outputs after an ambiguous bus interruption.
+
+## Repository layout
+
+- `engine/`: DARTWIC module, cyclic task, batch channel path, PDO codec, and bridge loader.
+- `bridge/`: KickCAT-backed C ABI shared library.
+- `interface/`: dropdown-driven module and task editors.
+- `tests/`: codec, ABI loader, fake bridge, and throughput tests.
+- `tools/ethercat_rate_test.cpp`: hardware-free and physical-bus rate test.
+
+## Current scope
+
+This is an initial implementation intended for simulator validation and hardware bring-up. Before production control use, validate the exact slave chain on the target Linux real-time configuration, define application-specific output safety behavior, and measure worst-case—not only average—cycle latency.
