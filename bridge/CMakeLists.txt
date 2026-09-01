@@ -41,7 +41,7 @@ if(WIN32)
 endif()
 
 if(MINGW)
-    target_link_options(dartwic_ethercat_bridge PRIVATE -static-libgcc -static-libstdc++)
+    target_link_options(dartwic_ethercat_bridge PRIVATE -static -static-libgcc -static-libstdc++)
 endif()
 
 install(TARGETS dartwic_ethercat_bridge

@@ -98,4 +98,9 @@ jobs:
             -DCMAKE_TOOLCHAIN_FILE="$PWD/build/bridge-conan/conan_toolchain.cmake"
           cmake --build build/bridge-windows
           test -f build/bridge-windows/dartwic_ethercat_bridge.dll
-          ldd build/bridge-windows/dartwic_ethercat_bridge.dll
+          bridge_dependencies="$(ldd build/bridge-windows/dartwic_ethercat_bridge.dll)"
+          printf '%s\n' "$bridge_dependencies"
+          if grep -qi 'libstdc\|libgcc\|libwinpthread' <<< "$bridge_dependencies"; then
+            echo "MinGW runtime DLLs must be linked statically"
+            exit 1
+          fi
