@@ -24,6 +24,7 @@ FetchContent_Declare(kickcat
     GIT_TAG f10386d54f734d388a405b4dae506801e35c238b
     GIT_SHALLOW FALSE)
 FetchContent_MakeAvailable(kickcat)
+set_target_properties(kickcat PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 add_library(dartwic_ethercat_bridge SHARED src/dartwic_ethercat_bridge.cpp)
 target_include_directories(dartwic_ethercat_bridge PRIVATE ../engine/include)
