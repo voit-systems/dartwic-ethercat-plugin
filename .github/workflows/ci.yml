@@ -86,7 +86,8 @@ jobs:
           conan install bridge/conanfile.txt \
             --output-folder=build/bridge-conan \
             --build=missing \
-            --settings=build_type=Release
+            --profile:host=bridge/profiles/mingw-ucrt64 \
+            --profile:build=default
       - name: Build the Windows KickCAT C bridge
         shell: msys2 {0}
         run: |

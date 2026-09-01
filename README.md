@@ -78,7 +78,8 @@ conan profile detect --force
 conan install bridge/conanfile.txt \
   --output-folder=build/bridge-conan \
   --build=missing \
-  --settings=build_type=Release
+  --profile:host=bridge/profiles/mingw-ucrt64 \
+  --profile:build=default
 
 cmake -S bridge -B build/bridge -G Ninja \
   -DCMAKE_BUILD_TYPE=Release \
@@ -86,6 +87,8 @@ cmake -S bridge -B build/bridge -G Ninja \
   -DCMAKE_TOOLCHAIN_FILE="$PWD/build/bridge-conan/conan_toolchain.cmake"
 cmake --build build/bridge
 ```
+
+The checked-in MinGW profile matches the CI toolchain. If your local MinGW major version differs, copy the profile and change `compiler.version` to the major version reported by `gcc -dumpversion`.
 
 Pass the resulting bridge to the plugin build so it is copied beside the plugin binary:
 
