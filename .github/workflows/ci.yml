@@ -74,6 +74,7 @@ jobs:
             mingw-w64-ucrt-x86_64-cmake
             mingw-w64-ucrt-x86_64-gcc
             mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-python-pip
       - name: Install Conan
         shell: msys2 {0}
         run: |
