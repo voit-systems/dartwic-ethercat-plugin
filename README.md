@@ -70,14 +70,20 @@ cmake -S bridge -B build/bridge -G Ninja \
 cmake --build build/bridge
 ```
 
-Windows uses a POSIX MinGW-w64 GCC toolchain because KickCAT's Windows backend is built for that environment. It also requires Npcap for physical adapters:
+Windows uses a POSIX MinGW-w64 GCC toolchain because KickCAT's Windows backend is built for that environment. KickCAT's tested Windows dependency path is Conan, which supplies the Npcap SDK used by the bridge:
 
 ```shell
+python -m pip install conan==2.19.1
+conan profile detect --force
+conan install bridge/conanfile.txt \
+  --output-folder=build/bridge-conan \
+  --build=missing \
+  --settings=build_type=Release
+
 cmake -S bridge -B build/bridge -G Ninja \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ \
-  -DVCPKG_TARGET_TRIPLET=x64-mingw-dynamic \
-  -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
+  -DCMAKE_TOOLCHAIN_FILE="$PWD/build/bridge-conan/conan_toolchain.cmake"
 cmake --build build/bridge
 ```
 

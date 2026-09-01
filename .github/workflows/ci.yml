@@ -74,19 +74,18 @@ jobs:
             mingw-w64-ucrt-x86_64-cmake
             mingw-w64-ucrt-x86_64-gcc
             mingw-w64-ucrt-x86_64-ninja
-      - name: Bootstrap vcpkg
-        shell: pwsh
-        run: |
-          git clone --depth 1 https://github.com/microsoft/vcpkg.git "$env:RUNNER_TEMP/vcpkg"
-          & "$env:RUNNER_TEMP/vcpkg/bootstrap-vcpkg.bat" -disableMetrics
-          "VCPKG_ROOT=$env:RUNNER_TEMP/vcpkg" | Out-File -FilePath $env:GITHUB_ENV -Append
-      - name: Install MinGW bridge dependencies
+      - name: Install Conan
         shell: msys2 {0}
         run: |
-          "$VCPKG_ROOT/vcpkg.exe" install \
-            --triplet x64-mingw-dynamic \
-            --x-manifest-root="$PWD/bridge" \
-            --x-install-root="$PWD/build/bridge-vcpkg"
+          python -m pip install "conan==2.19.1"
+          conan profile detect --force
+      - name: Install MinGW bridge dependencies with Conan
+        shell: msys2 {0}
+        run: |
+          conan install bridge/conanfile.txt \
+            --output-folder=build/bridge-conan \
+            --build=missing \
+            --settings=build_type=Release
       - name: Build the Windows KickCAT C bridge
         shell: msys2 {0}
         run: |
@@ -94,8 +93,6 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_C_COMPILER=gcc \
             -DCMAKE_CXX_COMPILER=g++ \
-            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
-            -DVCPKG_TARGET_TRIPLET=x64-mingw-dynamic \
-            -DVCPKG_INSTALLED_DIR="$PWD/build/bridge-vcpkg"
+            -DCMAKE_TOOLCHAIN_FILE="$PWD/build/bridge-conan/conan_toolchain.cmake"
           cmake --build build/bridge-windows
           test -f build/bridge-windows/dartwic_ethercat_bridge.dll
