@@ -73,7 +73,7 @@ cmake --build build/bridge
 Windows uses a POSIX MinGW-w64 GCC toolchain because KickCAT's Windows backend is built for that environment. KickCAT's tested Windows dependency path is Conan, which supplies the Npcap SDK used by the bridge:
 
 ```shell
-python -m pip install conan==2.19.1
+python -m pip install conan==2.32.0
 conan profile detect --force
 conan install bridge/conanfile.txt \
   --output-folder=build/bridge-conan \
