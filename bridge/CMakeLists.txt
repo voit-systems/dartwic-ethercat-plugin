@@ -36,6 +36,14 @@ set_target_properties(dartwic_ethercat_bridge PROPERTIES
     CXX_VISIBILITY_PRESET hidden
     VISIBILITY_INLINES_HIDDEN ON)
 
+if(WIN32)
+    set_target_properties(dartwic_ethercat_bridge PROPERTIES PREFIX "")
+endif()
+
+if(MINGW)
+    target_link_options(dartwic_ethercat_bridge PRIVATE -static-libgcc -static-libstdc++)
+endif()
+
 install(TARGETS dartwic_ethercat_bridge
     RUNTIME DESTINATION bin
     LIBRARY DESTINATION lib)

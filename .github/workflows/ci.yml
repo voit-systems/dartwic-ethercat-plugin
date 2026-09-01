@@ -98,3 +98,4 @@ jobs:
             -DCMAKE_TOOLCHAIN_FILE="$PWD/build/bridge-conan/conan_toolchain.cmake"
           cmake --build build/bridge-windows
           test -f build/bridge-windows/dartwic_ethercat_bridge.dll
+          ldd build/bridge-windows/dartwic_ethercat_bridge.dll
