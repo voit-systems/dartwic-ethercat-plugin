@@ -1,6 +1,6 @@
 import React from "../sdk/react.ts";
-import {Button, Input, Label, ScrollArea, ScrollBar} from "../sdk/ui/general.ts";
-import {ChannelComboBox, convertChannelReferenceToChannelName, ModuleInstanceSelect} from "../sdk/ui/dartwic.ts";
+import {Button, Label, ScrollArea, ScrollBar} from "../sdk/ui/general.ts";
+import {ChannelComboBox, ComboboxSearch, convertChannelReferenceToChannelName, ModuleInstanceSelect} from "../sdk/ui/dartwic.ts";
 
 function unwrap(result) {
     if (result?.error) throw new Error(result?.payload?.error || "EtherCAT operation failed.");
@@ -23,29 +23,23 @@ function labelFor(entry) {
 function PdoEntrySearch({mapping, entries, onChange}) {
     const selected = entries.find((entry) => entryKey(entry) === mapping.entry_key);
     const availableEntries = entries.filter((entry) => entry.direction === mapping.direction);
-    const selectedLabel = selected ? labelFor(selected) : "";
-    const [query, setQuery] = React.useState(selectedLabel);
-    const listId = React.useId();
-    React.useEffect(() => { setQuery(selectedLabel); }, [selectedLabel]);
-    return <>
-        <Input list={listId} value={query} placeholder="SEARCH PDO ENTRY" onChange={(event) => {
-            const value = event.target.value;
-            setQuery(value);
-            const entry = availableEntries.find((candidate) => labelFor(candidate) === value);
-            if (entry) onChange({...entry, entry_key: entryKey(entry), channel: mapping.channel || "", scale: mapping.scale ?? 1, offset: mapping.offset ?? 0});
-        }} onBlur={() => {
-            if (!availableEntries.some((entry) => labelFor(entry) === query)) setQuery(selectedLabel);
-        }}/>
-        <datalist id={listId}>{availableEntries.map((entry) => <option key={entryKey(entry)} value={labelFor(entry)}/>)}</datalist>
-    </>;
+    const options = availableEntries.map((entry) => ({value: entryKey(entry), label: labelFor(entry)}));
+    return <ComboboxSearch items={options} initialValue={mapping.entry_key || ""}
+        overrideValue={selected ? labelFor(selected) : undefined} placeholder="SELECT PDO ENTRY"
+        commandSearchPlaceholder="SEARCH PDO ENTRIES..." commandSearchEmptyPlaceholder="NO PDO ENTRY FOUND"
+        popoverContentClassName="w-[min(640px,calc(100vw-24px))]" unSelectable={false} className="h-10 w-full"
+        onSelect={(key) => {
+            const entry = availableEntries.find((candidate) => entryKey(candidate) === key);
+            if (entry) onChange({...entry, entry_key: key, channel: mapping.channel || "", scale: mapping.scale ?? 1, offset: mapping.offset ?? 0});
+        }}/>;
 }
 function MappingRow({mapping, entries, onChange, onRemove}) {
     const direction = mapping.direction;
-    return <div className="grid grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_auto] items-center gap-2 border-b py-2 last:border-b-0">
-        <PdoEntrySearch mapping={mapping} entries={entries} onChange={onChange}/>
-        <ChannelComboBox key={mapping.channel || mapping.row_key} mode={direction === "channel_to_device" ? "read" : "write"} showFieldSelector={false}
+    return <div className="flex w-full min-w-0 flex-nowrap items-center gap-2 border-b py-2 last:border-b-0">
+        <div className="min-w-0 flex-[3]"><PdoEntrySearch mapping={mapping} entries={entries} onChange={onChange}/></div>
+        <div className="min-w-0 flex-[2]"><ChannelComboBox key={mapping.channel || mapping.row_key} mode={direction === "channel_to_device" ? "read" : "write"} showFieldSelector={false}
             initialValue={mapping.channel || ""} placeholder={mapping.channel || "SEARCH CHANNEL"} editableTrigger={true}
-            onSelect={(value) => onChange({...mapping, channel: convertChannelReferenceToChannelName(value)})} className="w-full"/>
+            onSelect={(value) => onChange({...mapping, channel: convertChannelReferenceToChannelName(value)})} className="w-full" channelComboboxClassName="h-10"/></div>
         <Button className="h-10 shrink-0 px-3" variant="ghost" onClick={onRemove}>DELETE</Button>
     </div>;
 }

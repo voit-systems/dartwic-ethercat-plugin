@@ -250,6 +250,25 @@ export interface ManualRefreshButtonProps extends ButtonProps {
     isRefreshing?: boolean;
 }
 
+/** One searchable option displayed by the host shadcn combobox. */
+export interface ComboboxSearchItem {
+    value: string;
+    label: HostNode;
+}
+
+/** Props for the host shadcn searchable combobox. */
+export interface ComboboxSearchProps extends HostComponentProps {
+    items: ComboboxSearchItem[];
+    initialValue?: string;
+    placeholder?: string;
+    commandSearchPlaceholder?: string;
+    commandSearchEmptyPlaceholder?: string;
+    overrideValue?: HostNode;
+    onSelect?: (value: string) => void;
+    unSelectable?: boolean;
+    popoverContentClassName?: string;
+}
+
 /** Props for selecting a live module instance compatible with a plugin task. */
 export interface ModuleInstanceSelectProps extends HostComponentProps {
     /** Engine plugin that must own every displayed module instance. */
