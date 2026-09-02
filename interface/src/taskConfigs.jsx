@@ -55,9 +55,9 @@ export function EthercatTaskConfig({task, operation, onSaved, onClose, taskEdito
         }
         return merged;
     }, [topology, mappings]);
-    const payload = React.useMemo(() => ({module_instance_name: instance,
-        mappings: mappings.filter((mapping) => mapping.entry_key && mapping.channel).map(({row_key, ...mapping}) => mapping)}), [instance, mappings]);
-    const initial = React.useMemo(() => ({module_instance_name: task.arguments?.module_instance_name || "", mappings: task.arguments?.mappings || []}), [task]);
+    const payload = React.useMemo(() => ({...(task.arguments || {}), module_instance_name: instance,
+        mappings: mappings.filter((mapping) => mapping.entry_key && mapping.channel).map(({row_key, ...mapping}) => mapping)}), [task.arguments, instance, mappings]);
+    const initial = React.useMemo(() => ({...(task.arguments || {}), module_instance_name: task.arguments?.module_instance_name || "", mappings: task.arguments?.mappings || []}), [task]);
     const dirty = JSON.stringify(payload) !== JSON.stringify(initial);
     async function scan() {
         if (!instance) return setError("SELECT AN ETHERCAT MASTER FIRST.");
@@ -89,7 +89,8 @@ export function EthercatTaskConfig({task, operation, onSaved, onClose, taskEdito
         <div className="flex items-center justify-between"><Label>CYCLIC PDO MAPPINGS</Label><Button variant="outline" disabled={!topology}
             onClick={() => setMappings((current) => current.concat([{row_key: `new-${nextRow.current++}`, entry_key: "", channel: ""}]))}>ADD MAPPING</Button></div>
         <ScrollArea className="min-h-0 flex-1" type="always"><div className="space-y-3 pr-4">
-            {!topology ? <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">SELECT A MASTER AND SCAN THE BUS TO LOAD SLAVE AND PDO DROPDOWNS.</div> : null}
+            {!topology && mappings.length === 0 ? <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">SELECT A MASTER AND SCAN THE BUS TO LOAD SLAVE AND PDO DROPDOWNS.</div> : null}
+            {!topology && mappings.length > 0 ? <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">SHOWING SAVED PDO MAPPINGS. SCAN THE BUS TO REFRESH THE AVAILABLE ENTRIES.</div> : null}
             {topology && entries.length === 0 ? <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">NO MAPPED PDO ENTRIES WERE DISCOVERED.</div> : null}
             {mappings.map((mapping, index) => <MappingRow key={mapping.row_key || index} mapping={mapping} entries={entries}
                 onChange={(next) => setMappings((current) => current.map((value, item) => item === index ? {...next, row_key: mapping.row_key} : value))}
