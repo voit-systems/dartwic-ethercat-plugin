@@ -22,7 +22,7 @@ jobs:
           cmake --build build/bridge
       - name: Build plugin and tests
         run: |
-          cmake -S . -B build/plugin -G Ninja -DCMAKE_BUILD_TYPE=Release -DDARTWIC_ETHERCAT_BRIDGE_PATH="$PWD/build/bridge/libdartwic_ethercat_bridge.so"
+          cmake -S . -B build/plugin -G Ninja -DCMAKE_BUILD_TYPE=Release
           cmake --build build/plugin
       - name: Test codec, C ABI, throughput, and KickCAT simulator at 1 kHz
         run: |

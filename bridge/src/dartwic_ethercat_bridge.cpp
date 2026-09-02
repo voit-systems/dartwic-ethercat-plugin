@@ -292,8 +292,12 @@ dw_ec_result DW_EC_BRIDGE_CALL dw_ec_list_adapters_json(char* destination,
     size_t* required_size) {
     try {
         json adapters = json::array({{{"id", "simulator"}, {"name", "Built-in KickCAT simulator"}, {"kind", "simulator"}}});
-        for (const auto& adapter : kickcat::listInterfaces()) {
-            adapters.push_back({{"id", adapter.name}, {"name", adapter.description.empty() ? adapter.name : adapter.description}, {"kind", "hardware"}});
+        try {
+            for (const auto& adapter : kickcat::listInterfaces()) {
+                adapters.push_back({{"id", adapter.name}, {"name", adapter.description.empty() ? adapter.name : adapter.description}, {"kind", "hardware"}});
+            }
+        } catch (const std::exception&) {
+            // Npcap is optional for simulator-only Windows installations.
         }
         return writeJson(adapters, destination, destination_size, required_size);
     } catch (...) {

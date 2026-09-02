@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "node build.mjs",
+    "build:bridge": "node ./scripts/plugin-bridge.mjs",
     "build:interface": "node build.mjs",
     "verify": "node ./scripts/plugin-verify.mjs --source-only",
     "verify:package": "node ./scripts/plugin-verify.mjs",

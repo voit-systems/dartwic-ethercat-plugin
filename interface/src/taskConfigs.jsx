@@ -53,7 +53,7 @@ export function EthercatTaskConfig({task, operation, onSaved, onClose, taskEdito
     async function scan() {
         if (!instance) return setError("SELECT AN ETHERCAT MASTER FIRST.");
         setScanning(true); setError("");
-        try { setTopology(unwrap(await operation("ethercat/scan", {module_instance_name: instance}, 30000))); }
+        try { setTopology(unwrap(await operation("ethercat.scan", {module_instance_name: instance}, 30000))); }
         catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
         finally { setScanning(false); }
     }

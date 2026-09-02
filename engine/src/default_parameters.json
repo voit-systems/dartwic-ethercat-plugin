@@ -2,6 +2,5 @@
   "mode": "simulator",
   "adapter": "",
   "simulator_profile": "standard_io",
-  "receive_timeout_us": 500,
-  "bridge_path": ""
+  "receive_timeout_us": 500
 }

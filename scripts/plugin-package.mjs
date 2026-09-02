@@ -1,5 +1,6 @@
 import path from "node:path";
 import {verifySdkLock} from "./plugin-sdk-lock.mjs";
+import {ensureBridge} from "./plugin-bridge.mjs";
 
 import {
   getNpmCommand,
@@ -68,6 +69,7 @@ async function preparePluginOutput(pluginId, hasEngine, hasInterface) {
 
 async function buildEngine(pluginId) {
   process.stdout.write(`Building release engine plugin for ${pluginId}.\n`);
+  await ensureBridge();
   if (process.platform === "win32") {
     await runCommand("cmake", ["--preset", "windows-clang-release"]);
     await runCommand("cmake", [
@@ -98,6 +100,7 @@ async function buildEngine(pluginId) {
 
 async function buildEngineDebug(pluginId) {
   process.stdout.write(`Building debug engine plugin for ${pluginId}.\n`);
+  await ensureBridge();
   if (process.platform === "win32") {
     await runCommand("cmake", ["--preset", "windows-clang-debug"]);
     await runCommand("cmake", [

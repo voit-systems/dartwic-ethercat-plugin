@@ -5,8 +5,7 @@
 namespace EtherCAT {
 EthercatModule::EthercatModule(nlohmann::json config, DARTWIC::API::SDK_API* api)
     : BaseModule(std::move(config), api),
-      instance_name_(getConfig<std::string>("name")),
-      bridge_path_(getParameter<std::string>("bridge_path", "")) {}
+      instance_name_(getConfig<std::string>("name")) {}
 
 nlohmann::json EthercatModule::bridgeConfig() const {
     return {
@@ -19,7 +18,7 @@ nlohmann::json EthercatModule::bridgeConfig() const {
 
 nlohmann::json EthercatModule::listAdapters() {
     std::scoped_lock lock(mutex_);
-    if (!bridge_) bridge_ = std::make_unique<BridgeLibrary>(bridge_path_);
+    if (!bridge_) bridge_ = std::make_unique<BridgeLibrary>();
     return bridge_->listAdapters();
 }
 
@@ -27,7 +26,7 @@ nlohmann::json EthercatModule::scan() {
     std::scoped_lock lock(mutex_);
     if (!task_owner_.empty()) throw std::runtime_error(
         "Cannot scan EtherCAT module `" + instance_name_ + "` while task `" + task_owner_ + "` owns it.");
-    if (!bridge_) bridge_ = std::make_unique<BridgeLibrary>(bridge_path_);
+    if (!bridge_) bridge_ = std::make_unique<BridgeLibrary>();
     auto candidate = std::make_unique<BridgeLibrary::Master>(*bridge_, bridgeConfig());
     cached_topology_ = candidate->scan();
     return cached_topology_;
@@ -37,7 +36,7 @@ nlohmann::json EthercatModule::start(const std::string& task_name) {
     std::scoped_lock lock(mutex_);
     if (!task_owner_.empty() && task_owner_ != task_name) throw std::runtime_error(
         "EtherCAT module `" + instance_name_ + "` is already owned by task `" + task_owner_ + "`.");
-    if (!bridge_) bridge_ = std::make_unique<BridgeLibrary>(bridge_path_);
+    if (!bridge_) bridge_ = std::make_unique<BridgeLibrary>();
     auto candidate = std::make_unique<BridgeLibrary::Master>(*bridge_, bridgeConfig());
     cached_topology_ = candidate->scan();
     candidate->start();

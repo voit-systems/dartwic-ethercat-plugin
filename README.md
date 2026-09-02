@@ -59,45 +59,26 @@ Set `VCPKG_ROOT` before using the presets. On Linux, use `linux-clang-release` a
 
 ## Build the KickCAT C bridge
 
-KickCAT is fetched from [`leducp/KickCAT`](https://github.com/leducp/KickCAT) and pinned to commit `f10386d54f734d388a405b4dae506801e35c238b` (`v2.6-rc3`).
-
-Linux:
+KickCAT is fetched from [`leducp/KickCAT`](https://github.com/leducp/KickCAT) and pinned to commit `f10386d54f734d388a405b4dae506801e35c238b` (`v2.6-rc3`). The normal package and deploy commands build the bridge automatically, so no bridge override path is required. To build only the bridge, run:
 
 ```shell
-cmake -S bridge -B build/bridge -G Ninja \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
-cmake --build build/bridge
+npm run build:bridge
 ```
 
-Windows uses a POSIX MinGW-w64 GCC toolchain because KickCAT's Windows backend is built for that environment. KickCAT's tested Windows dependency path is Conan, which supplies the Npcap SDK used by the bridge:
+The canonical output is `build/bridge-windows/dartwic_ethercat_bridge.dll` on Windows and `build/bridge/libdartwic_ethercat_bridge.so` on Linux.
 
-```shell
-python -m pip install conan==2.32.0
-conan profile detect --force
-conan install bridge/conanfile.txt \
-  --output-folder=build/bridge-conan \
-  --build=missing \
-  --profile:host=bridge/profiles/mingw-ucrt64 \
-  --profile:build=default
+Windows requires the MSYS2 UCRT64 GCC, CMake, Ninja, and Python packages. The script creates an isolated Conan environment and obtains the Npcap development SDK automatically. Set `MSYS2_ROOT` only when MSYS2 is installed somewhere other than `C:\msys64`. Linux uses the system CMake toolchain and honors `VCPKG_ROOT` when provided.
 
-cmake -S bridge -B build/bridge -G Ninja \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ \
-  -DCMAKE_TOOLCHAIN_FILE="$PWD/build/bridge-conan/conan_toolchain.cmake"
-cmake --build build/bridge
-```
+Npcap must be installed on a target Windows machine that uses a physical adapter. The bridge loads Npcap only when physical I/O is requested, so the built-in simulator does not require Npcap, EtherCAT hardware, or a dedicated NIC. Npcap runtime binaries are not checked into this open-source repository because redistribution requires an [Npcap OEM license](https://nmap.org/npcap/oem/).
 
-The checked-in MinGW profile matches the CI toolchain. If your local MinGW major version differs, copy the profile and change `compiler.version` to the major version reported by `gcc -dumpversion`.
+## External EtherCAT simulation
 
-Pass the resulting bridge to the plugin build so it is copied beside the plugin binary:
+Use an external SubDevice simulator when testing the complete NIC, packet-driver, and wire path:
 
-```shell
-cmake --preset windows-clang-release \
-  -DDARTWIC_ETHERCAT_BRIDGE_PATH=/absolute/path/to/dartwic_ethercat_bridge.dll
-```
+- [Beckhoff TE1111 TwinCAT 3 EtherCAT Simulation](https://www.beckhoff.com/en-en/products/automation/twinsafe/twinsafe-software/te1111.html) is the most approachable Windows option and is available in TwinCAT for demo testing.
+- [acontis EC-Simulator](https://www.acontis.com/en/ethercat-simulation.html) is the stronger commercial option when Windows and Linux support, larger networks, programmable PDO behavior, or fault injection matter.
 
-Npcap must be installed on the target Windows machine because the Windows bridge contains KickCAT's Npcap backend. The simulator does not require EtherCAT hardware or a dedicated NIC.
+Run the simulator on a separate EtherCAT-facing adapter (or a second machine) connected to the adapter selected in DARTWIC. Install Npcap on the DARTWIC Windows host for that physical connection.
 
 ## Tests and 1 kHz rate check
 

@@ -1,5 +1,6 @@
 import path from "node:path";
 import fs from "node:fs/promises";
+import {ensureBridge} from "./plugin-bridge.mjs";
 
 import {
   copyDirectory,
@@ -62,6 +63,7 @@ async function loadDeploymentSettings() {
 async function buildEngineRelease(pluginId) {
   process.stdout.write(`Building release engine plugin for ${pluginId}.\n`);
   await removePath(getPluginSidePaths(pluginId).engineReleaseDir);
+  await ensureBridge();
   if (process.platform === "win32") {
     await runCommand("cmake", ["--preset", "windows-clang-release"]);
     await runCommand("cmake", [
@@ -93,6 +95,7 @@ async function buildEngineRelease(pluginId) {
 async function buildEngineDebug(pluginId) {
   process.stdout.write(`Building debug engine plugin for ${pluginId}.\n`);
   await removePath(getPluginSidePaths(pluginId).engineDebugDir);
+  await ensureBridge();
   if (process.platform === "win32") {
     await runCommand("cmake", ["--preset", "windows-clang-debug"]);
     await runCommand("cmake", [

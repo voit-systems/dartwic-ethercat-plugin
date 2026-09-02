@@ -24,6 +24,20 @@ FetchContent_Declare(kickcat
     GIT_TAG f10386d54f734d388a405b4dae506801e35c238b
     GIT_SHALLOW FALSE)
 FetchContent_MakeAvailable(kickcat)
+if(WIN32)
+    # KickCAT links Npcap directly, which makes Windows load wpcap.dll before the
+    # built-in simulator can run. Replace only its Windows socket translation
+    # unit with a lazy-loading equivalent so Npcap is required for hardware I/O,
+    # not for loading the bridge or using the simulator.
+    configure_file(
+        src/kickcat_windows_socket.cpp
+        "${kickcat_SOURCE_DIR}/lib/src/OS/Windows/Socket.cc"
+        COPYONLY)
+    configure_file(
+        src/kickcat_windows_time.cpp
+        "${kickcat_SOURCE_DIR}/lib/src/OS/Windows/Time.cc"
+        COPYONLY)
+endif()
 set_target_properties(kickcat PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 add_library(dartwic_ethercat_bridge SHARED src/dartwic_ethercat_bridge.cpp)

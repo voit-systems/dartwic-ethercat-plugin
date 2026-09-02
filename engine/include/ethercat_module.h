@@ -28,7 +28,6 @@ namespace EtherCAT {
 
     private:
         std::string instance_name_;
-        std::filesystem::path bridge_path_;
         mutable std::mutex mutex_;
         std::string task_owner_;
         std::unique_ptr<BridgeLibrary> bridge_;

@@ -19,7 +19,7 @@ export function EthercatModuleConfig({instanceConfig, setInstanceConfig, save, o
     const loadAdapters = React.useCallback(async () => {
         setLoading(true); setError("");
         try {
-            const value = unwrap(await operation("ethercat/adapters", {}, 15000));
+            const value = unwrap(await operation("ethercat.adapters", {}, 15000));
             setAdapters(Array.isArray(value) ? value : []);
         } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
         finally { setLoading(false); }
@@ -51,7 +51,6 @@ export function EthercatModuleConfig({instanceConfig, setInstanceConfig, save, o
                 </SelectContent></Select>
             </div>}
             <div className="space-y-2"><Label>RECEIVE TIMEOUT (µs)</Label><Input type="number" min="50" value={parameters.receive_timeout_us ?? 500} onChange={(event) => update("receive_timeout_us", Number(event.target.value))}/></div>
-            <div className="space-y-2"><Label>BRIDGE OVERRIDE PATH (OPTIONAL)</Label><Input value={parameters.bridge_path || ""} placeholder="Use bridge beside plugin" onChange={(event) => update("bridge_path", event.target.value)}/></div>
         </div>
         <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">Each master is exclusively owned by one cyclic task while running. Stopping the task stops exchanges without forcing output values.</div>
     </div>;

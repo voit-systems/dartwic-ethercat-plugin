@@ -62,13 +62,18 @@ set(ENGINE_PLUGIN_COPY_COMMANDS
     COMMAND ${CMAKE_COMMAND} -E copy_if_different "${ENGINE_DIR}/src/module_config.json" "${ENGINE_PLUGIN_DIR}/module_config.json"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different "${ENGINE_DIR}/src/default_parameters.json" "${ENGINE_PLUGIN_DIR}/default_parameters.json")
 
-set(DARTWIC_ETHERCAT_BRIDGE_PATH "" CACHE FILEPATH "Optional prebuilt KickCAT C bridge copied beside the DARTWIC plugin")
-if(DARTWIC_ETHERCAT_BRIDGE_PATH)
-    if(NOT EXISTS "${DARTWIC_ETHERCAT_BRIDGE_PATH}")
-        message(FATAL_ERROR "DARTWIC_ETHERCAT_BRIDGE_PATH does not exist: ${DARTWIC_ETHERCAT_BRIDGE_PATH}")
-    endif()
+if(WIN32)
+    set(DARTWIC_ETHERCAT_BRIDGE_FILE "${PROJECT_SOURCE_DIR}/build/bridge-windows/dartwic_ethercat_bridge.dll")
+elseif(APPLE)
+    set(DARTWIC_ETHERCAT_BRIDGE_FILE "${PROJECT_SOURCE_DIR}/build/bridge/libdartwic_ethercat_bridge.dylib")
+else()
+    set(DARTWIC_ETHERCAT_BRIDGE_FILE "${PROJECT_SOURCE_DIR}/build/bridge/libdartwic_ethercat_bridge.so")
+endif()
+if(EXISTS "${DARTWIC_ETHERCAT_BRIDGE_FILE}")
     list(APPEND ENGINE_PLUGIN_COPY_COMMANDS
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different "${DARTWIC_ETHERCAT_BRIDGE_PATH}" "${ENGINE_PLUGIN_DIR}/bin/")
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "${DARTWIC_ETHERCAT_BRIDGE_FILE}" "${ENGINE_PLUGIN_DIR}/bin/")
+else()
+    message(STATUS "KickCAT bridge not present at ${DARTWIC_ETHERCAT_BRIDGE_FILE}; build it with npm run build:bridge before packaging or deployment")
 endif()
 
 add_custom_target(dartwic_ethercat_plugin ALL ${ENGINE_PLUGIN_COPY_COMMANDS}
