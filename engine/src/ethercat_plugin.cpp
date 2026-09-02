@@ -107,7 +107,6 @@ void configureCycle(DARTWIC::API::SDK_API* api, DARTWIC::API::TaskRuntime& runti
     if (instance.empty()) throw std::runtime_error("ethercat.cycle requires module_instance_name.");
     auto module = moduleFor(api, instance);
     const auto mappings = parseMappings(arguments);
-    if (mappings.empty()) throw std::runtime_error("Configure at least one EtherCAT PDO mapping.");
 
     std::vector<std::string> fixed_inputs;
     for (const auto& mapping : mappings) {
@@ -129,6 +128,10 @@ std::shared_ptr<CycleContext> startCycle(DARTWIC::API::SDK_API* api,
     context->module = moduleFor(api, arguments.value("module_instance_name", std::string{}));
     for (auto& mapping : parseMappings(arguments)) {
         (mapping.channel_to_device ? context->outputs : context->inputs).push_back(std::move(mapping));
+    }
+    if (context->outputs.empty() && context->inputs.empty()) {
+        throw std::runtime_error(
+            "Configure at least one EtherCAT PDO mapping before starting this task.");
     }
 
     context->module->start(context->task_name);
