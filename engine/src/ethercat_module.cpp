@@ -24,8 +24,13 @@ nlohmann::json EthercatModule::listAdapters() {
 
 nlohmann::json EthercatModule::scan() {
     std::scoped_lock lock(mutex_);
-    if (!task_owner_.empty()) throw std::runtime_error(
-        "Cannot scan EtherCAT module `" + instance_name_ + "` while task `" + task_owner_ + "` owns it.");
+    if (!task_owner_.empty()) {
+        if (cached_topology_.is_object() && cached_topology_.contains("slaves")) {
+            return cached_topology_;
+        }
+        throw std::runtime_error(
+            "Cannot scan EtherCAT module `" + instance_name_ + "` while task `" + task_owner_ + "` owns it.");
+    }
     if (!bridge_) bridge_ = std::make_unique<BridgeLibrary>();
     auto candidate = std::make_unique<BridgeLibrary::Master>(*bridge_, bridgeConfig());
     cached_topology_ = candidate->scan();

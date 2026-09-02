@@ -45,7 +45,16 @@ export function EthercatTaskConfig({task, operation, onSaved, onClose, taskEdito
     const [saving, setSaving] = React.useState(false);
     const [error, setError] = React.useState("");
     const nextRow = React.useRef(0);
-    const entries = React.useMemo(() => flattenEntries(topology), [topology]);
+    const entries = React.useMemo(() => {
+        const merged = flattenEntries(topology);
+        const knownKeys = new Set(merged.map(entryKey));
+        for (const mapping of mappings) {
+            if (!mapping.entry_key || knownKeys.has(mapping.entry_key)) continue;
+            merged.push(mapping);
+            knownKeys.add(mapping.entry_key);
+        }
+        return merged;
+    }, [topology, mappings]);
     const payload = React.useMemo(() => ({module_instance_name: instance,
         mappings: mappings.filter((mapping) => mapping.entry_key && mapping.channel).map(({row_key, ...mapping}) => mapping)}), [instance, mappings]);
     const initial = React.useMemo(() => ({module_instance_name: task.arguments?.module_instance_name || "", mappings: task.arguments?.mappings || []}), [task]);
