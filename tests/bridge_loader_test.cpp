@@ -10,7 +10,7 @@ int main(int argc, char** argv) {
     try {
         EtherCAT::BridgeLibrary library{std::filesystem::path(argv[1])};
         if (library.listAdapters().empty()) return 1;
-        EtherCAT::BridgeLibrary::Master master(library, {{"mode", "simulator"}});
+        EtherCAT::BridgeLibrary::Master master(library, {{"adapter", "fake"}});
         const auto topology = master.scan();
         if (topology.at("slaves").size() != 1 || master.outputSize() != 16 || master.inputSize() != 16) return 1;
         master.start();

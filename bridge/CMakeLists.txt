@@ -25,10 +25,9 @@ FetchContent_Declare(kickcat
     GIT_SHALLOW FALSE)
 FetchContent_MakeAvailable(kickcat)
 if(WIN32)
-    # KickCAT links Npcap directly, which makes Windows load wpcap.dll before the
-    # built-in simulator can run. Replace only its Windows socket translation
-    # unit with a lazy-loading equivalent so Npcap is required for hardware I/O,
-    # not for loading the bridge or using the simulator.
+    # Replace KickCAT's directly linked Windows socket translation unit with a
+    # lazy-loading equivalent. This lets the plugin load and report a useful
+    # adapter error when Npcap is missing instead of failing DLL discovery.
     configure_file(
         src/kickcat_windows_socket.cpp
         "${kickcat_SOURCE_DIR}/lib/src/OS/Windows/Socket.cc"

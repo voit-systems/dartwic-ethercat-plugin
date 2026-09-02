@@ -24,10 +24,10 @@ jobs:
         run: |
           cmake -S . -B build/plugin -G Ninja -DCMAKE_BUILD_TYPE=Release
           cmake --build build/plugin
-      - name: Test codec, C ABI, throughput, and KickCAT simulator at 1 kHz
+      - name: Test codec, C ABI, and bridge cadence at 1 kHz
         run: |
           ctest --test-dir build/plugin --output-on-failure
-          build/plugin/ethercat_rate_test --bridge build/bridge/libdartwic_ethercat_bridge.so --cycles 3000 --period-us 1000
+          build/plugin/ethercat_rate_test --bridge build/plugin/tests/libdartwic_ethercat_bridge_fake.so --adapter fake --cycles 3000 --period-us 1000
       - name: Build and verify interface plugin
         run: |
           npm ci

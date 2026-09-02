@@ -14,15 +14,8 @@
 #include "kickcat/AbstractSocket.h"
 #include "kickcat/Bus.h"
 #include "kickcat/CoE/OD.h"
-#include "kickcat/ESC/EmulatedESC.h"
-#include "kickcat/ESI/Device.h"
-#include "kickcat/ESI/SIIBuilder.h"
 #include "kickcat/Link.h"
-#include "kickcat/LoopbackSocket.h"
-#include "kickcat/PDO.h"
-#include "kickcat/SocketNull.h"
 #include "kickcat/helpers.h"
-#include "kickcat/slave/Slave.h"
 
 using namespace std::chrono_literals;
 
@@ -42,12 +35,6 @@ struct dw_ec_context {
     bool scanned = false;
     bool running = false;
 
-    std::unique_ptr<kickcat::EmulatedESC> sim_esc;
-    std::unique_ptr<kickcat::PDO> sim_pdo;
-    std::unique_ptr<kickcat::slave::Slave> sim_slave;
-    std::vector<uint8_t> sim_inputs;
-    std::vector<uint8_t> sim_outputs;
-    bool sim_op_phase = false;
 };
 
 namespace {
@@ -76,74 +63,6 @@ dw_ec_result writeJson(const json& value, char* destination, size_t destination_
     if (destination_size < *required_size) return DW_EC_INVALID_ARGUMENT;
     std::memcpy(destination, text.c_str(), *required_size);
     return DW_EC_OK;
-}
-
-kickcat::ESI::Device makeStandardDevice() {
-    using namespace kickcat;
-    ESI::Device device;
-    device.type = "DARTWIC-SIM-IO";
-    device.name = "DARTWIC EtherCAT Simulator";
-    device.vendor_name = "DARTWIC";
-    device.vendor_id = 0x00DA47u;
-    device.product_code = 0x00000001u;
-    device.revision_no = 0x00010000u;
-    device.serial_no = 1;
-
-    ESI::SmInfo output_sm;
-    output_sm.type = SyncManager::Output;
-    output_sm.start_address = 0x1800;
-    output_sm.default_size = 13;
-    output_sm.control_byte = 0x64;
-    output_sm.enable = 1;
-    device.sync_managers.push_back(output_sm);
-
-    ESI::SmInfo input_sm;
-    input_sm.type = SyncManager::Input;
-    input_sm.start_address = 0x1C00;
-    input_sm.default_size = 17;
-    input_sm.control_byte = 0x20;
-    input_sm.enable = 1;
-    device.sync_managers.push_back(input_sm);
-
-    ESI::Fmmu output_fmmu;
-    output_fmmu.type = fmmu::Outputs;
-    device.fmmus.push_back(output_fmmu);
-    ESI::Fmmu input_fmmu;
-    input_fmmu.type = fmmu::Inputs;
-    device.fmmus.push_back(input_fmmu);
-
-    ESI::Pdo rx;
-    rx.index = 0x1600;
-    rx.name = "Command outputs";
-    rx.sm = 0;
-    rx.fixed = true;
-    rx.entries = {
-        {0x7000, 1, 32, "Command U32", "", "UDINT"},
-        {0x7000, 2, 64, "Command F64", "", "LREAL"},
-        {0x7000, 3, 1, "Command Bool", "", "BOOL"},
-        {0x0000, 0, 7, "Padding", "", ""},
-    };
-    device.rx_pdos.push_back(rx);
-
-    ESI::Pdo tx;
-    tx.index = 0x1A00;
-    tx.name = "Measured inputs";
-    tx.sm = 1;
-    tx.fixed = true;
-    tx.entries = {
-        {0x6000, 1, 32, "Echo U32", "", "UDINT"},
-        {0x6000, 2, 64, "Echo F64", "", "LREAL"},
-        {0x6000, 3, 1, "Echo Bool", "", "BOOL"},
-        {0x0000, 0, 7, "Padding", "", ""},
-        {0x6000, 4, 32, "Cycle Counter", "", "UDINT"},
-    };
-    device.tx_pdos.push_back(tx);
-
-    ESI::Eeprom eeprom;
-    eeprom.byte_size = 2048;
-    eeprom.config_data = {0x04, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-    device.eeprom = std::move(eeprom);
-    return device;
 }
 
 std::string dataType(uint8_t code, uint8_t bits) {
@@ -228,47 +147,13 @@ void buildTopology(dw_ec_context& context) {
     };
 }
 
-void createSimulator(dw_ec_context& context) {
-    using namespace kickcat;
-    auto device = makeStandardDevice();
-    context.sim_esc = std::make_unique<EmulatedESC>();
-    context.sim_esc->loadEeprom(ESI::buildEepromImage(device));
-    context.sim_pdo = std::make_unique<PDO>(context.sim_esc.get());
-    context.sim_slave = std::make_unique<slave::Slave>(context.sim_esc.get(), context.sim_pdo.get());
-    context.sim_inputs.assign(17, 0);
-    context.sim_outputs.assign(13, 0);
-    context.sim_pdo->setInput(context.sim_inputs.data(), static_cast<uint32_t>(context.sim_inputs.size()));
-    context.sim_pdo->setOutput(context.sim_outputs.data(), static_cast<uint32_t>(context.sim_outputs.size()));
-    context.sim_slave->start();
-
-    auto tick = [&context]() {
-        context.sim_slave->routine();
-        if (context.sim_op_phase && context.sim_slave->state() == State::SAFE_OP) {
-            context.sim_slave->validateOutputData();
-        }
-        std::copy(context.sim_outputs.begin(), context.sim_outputs.end(), context.sim_inputs.begin());
-        const uint32_t counter = static_cast<uint32_t>(context.cycle_count);
-        std::memcpy(context.sim_inputs.data() + 13, &counter, sizeof(counter));
-    };
-    context.nominal_socket = std::make_shared<LoopbackSocket>(
-        std::vector<EmulatedESC*>{context.sim_esc.get()}, std::move(tick));
-    context.redundant_socket = std::make_shared<SocketNull>();
-}
-
 void scanBus(dw_ec_context& context) {
     using namespace kickcat;
-    const auto mode = context.config.value("mode", std::string{"simulator"});
-    if (mode == "simulator") {
-        createSimulator(context);
-    } else if (mode == "hardware") {
-        const auto adapter = context.config.value("adapter", std::string{});
-        if (adapter.empty()) throw std::invalid_argument("Hardware mode requires an adapter.");
-        auto sockets = createSockets(adapter, "");
-        context.nominal_socket = std::get<0>(sockets);
-        context.redundant_socket = std::get<1>(sockets);
-    } else {
-        throw std::invalid_argument("EtherCAT bridge mode must be simulator or hardware.");
-    }
+    const auto adapter = context.config.value("adapter", std::string{});
+    if (adapter.empty()) throw std::invalid_argument("EtherCAT requires a network adapter.");
+    auto sockets = createSockets(adapter, "");
+    context.nominal_socket = std::get<0>(sockets);
+    context.redundant_socket = std::get<1>(sockets);
 
     context.link = std::make_shared<Link>(context.nominal_socket, context.redundant_socket, []() {});
     context.link->setTimeout(std::chrono::microseconds(
@@ -291,13 +176,13 @@ dw_ec_result DW_EC_BRIDGE_CALL dw_ec_list_adapters_json(char* destination,
     size_t destination_size,
     size_t* required_size) {
     try {
-        json adapters = json::array({{{"id", "simulator"}, {"name", "Built-in KickCAT simulator"}, {"kind", "simulator"}}});
+        json adapters = json::array();
         try {
             for (const auto& adapter : kickcat::listInterfaces()) {
                 adapters.push_back({{"id", adapter.name}, {"name", adapter.description.empty() ? adapter.name : adapter.description}, {"kind", "hardware"}});
             }
         } catch (const std::exception&) {
-            // Npcap is optional for simulator-only Windows installations.
+            // The UI explains the Npcap prerequisite when no adapters are available.
         }
         return writeJson(adapters, destination, destination_size, required_size);
     } catch (...) {
@@ -348,7 +233,6 @@ dw_ec_result DW_EC_BRIDGE_CALL dw_ec_start(dw_ec_context* context) {
     return guard(context, [&]() {
         auto error = [](kickcat::DatagramState const&) {};
         context->bus->processDataReadWrite(error);
-        context->sim_op_phase = true;
         context->bus->requestState(kickcat::State::OPERATIONAL);
         context->bus->waitForState(kickcat::State::OPERATIONAL, 500ms, [&]() {
             context->bus->processDataReadWrite(error);

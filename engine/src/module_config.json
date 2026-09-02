@@ -2,5 +2,5 @@
   "name": "master",
   "title": "EtherCAT Master",
   "icon": "",
-  "description": "One physical adapter or in-process KickCAT simulator. A single cyclic task owns each instance while running."
+  "description": "One physical EtherCAT adapter. A single cyclic task owns each instance while running."
 }

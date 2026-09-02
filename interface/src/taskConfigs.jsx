@@ -1,5 +1,5 @@
 import React from "../sdk/react.ts";
-import {Button, Label, ScrollArea, ScrollBar, Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "../sdk/ui/general.ts";
+import {Button, Input, Label, ScrollArea, ScrollBar, Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "../sdk/ui/general.ts";
 import {ChannelComboBox, convertChannelReferenceToChannelName, ModuleInstanceSelect} from "../sdk/ui/dartwic.ts";
 
 function unwrap(result) {
@@ -20,20 +20,34 @@ function labelFor(entry) {
     const object = `0x${Number(entry.index).toString(16).padStart(4, "0")}:${entry.subindex}`;
     return `${arrow} · S${entry.slave_position} ${entry.slave_name} · ${object} ${entry.name} (${entry.data_type})`;
 }
-function MappingRow({mapping, entries, onChange, onRemove}) {
+function MappingRow({mapping, entries, index, onChange, onRemove}) {
     const selected = entries.find((entry) => entryKey(entry) === mapping.entry_key);
-    return <div className="space-y-3 rounded-md border p-3">
-        <div className="flex items-center gap-2"><div className="min-w-0 flex-1">
+    const direction = selected?.direction || mapping.direction;
+    const availableEntries = direction ? entries.filter((entry) => entry.direction === direction) : entries;
+    const directionLabel = direction === "channel_to_device" ? "RAPID → DEVICE" : direction === "device_to_channel" ? "DEVICE → RAPID" : "SELECT DIRECTION";
+    return <div className="space-y-3 rounded-md border bg-muted/10 p-3">
+        <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2"><span className="text-xs font-semibold">MAPPING {index + 1}</span><span className="rounded border px-2 py-0.5 text-[10px] text-muted-foreground">{directionLabel}</span></div>
+            <Button variant="ghost" onClick={onRemove}>REMOVE</Button>
+        </div>
+        <div className="space-y-2"><Label>PDO ENTRY</Label>
             <Select value={mapping.entry_key || ""} onValueChange={(key) => {
                 const entry = entries.find((candidate) => entryKey(candidate) === key);
-                if (entry) onChange({...entry, entry_key: key, channel: mapping.channel || "", scale: 1, offset: 0});
+                if (entry) onChange({...entry, entry_key: key, channel: mapping.channel || "", scale: mapping.scale ?? 1, offset: mapping.offset ?? 0});
             }}><SelectTrigger><SelectValue placeholder="SELECT A DISCOVERED PDO ENTRY"/></SelectTrigger><SelectContent>
-                {entries.map((entry) => <SelectItem key={entryKey(entry)} value={entryKey(entry)}>{labelFor(entry)}</SelectItem>)}
+                {availableEntries.map((entry) => <SelectItem key={entryKey(entry)} value={entryKey(entry)}>{labelFor(entry)}</SelectItem>)}
             </SelectContent></Select>
-        </div><Button variant="ghost" onClick={onRemove}>REMOVE</Button></div>
-        <ChannelComboBox mode={selected?.direction === "channel_to_device" ? "read" : "write"} showFieldSelector={false}
-            initialValue={mapping.channel || ""} placeholder="SELECT FIXED RAPID CHANNEL"
-            onSelect={(value) => onChange({...mapping, channel: convertChannelReferenceToChannelName(value)})} className="w-full"/>
+        </div>
+        <div className="space-y-2"><Label>{direction === "channel_to_device" ? "COMMAND SOURCE CHANNEL" : "TELEMETRY DESTINATION CHANNEL"}</Label>
+            <ChannelComboBox mode={direction === "channel_to_device" ? "read" : "write"} showFieldSelector={false}
+                initialValue={mapping.channel || ""} placeholder="SELECT FIXED RAPID CHANNEL"
+                onSelect={(value) => onChange({...mapping, channel: convertChannelReferenceToChannelName(value)})} className="w-full"/>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2"><Label>SCALE</Label><Input type="number" step="any" value={mapping.scale ?? 1} onChange={(event) => onChange({...mapping, scale: Number(event.target.value)})}/></div>
+            <div className="space-y-2"><Label>OFFSET</Label><Input type="number" step="any" value={mapping.offset ?? 0} onChange={(event) => onChange({...mapping, offset: Number(event.target.value)})}/></div>
+        </div>
+        {!mapping.entry_key || !mapping.channel ? <div className="text-xs text-yellow">SELECT BOTH A PDO ENTRY AND RAPID CHANNEL TO COMPLETE THIS MAPPING.</div> : null}
     </div>;
 }
 
@@ -45,6 +59,7 @@ export function EthercatTaskConfig({task, operation, onSaved, onClose, taskEdito
     const [saving, setSaving] = React.useState(false);
     const [error, setError] = React.useState("");
     const nextRow = React.useRef(0);
+    const initialScanStarted = React.useRef(false);
     const entries = React.useMemo(() => {
         const merged = flattenEntries(topology);
         const knownKeys = new Set(merged.map(entryKey));
@@ -59,13 +74,19 @@ export function EthercatTaskConfig({task, operation, onSaved, onClose, taskEdito
         mappings: mappings.filter((mapping) => mapping.entry_key && mapping.channel).map(({row_key, ...mapping}) => mapping)}), [task.arguments, instance, mappings]);
     const initial = React.useMemo(() => ({...(task.arguments || {}), module_instance_name: task.arguments?.module_instance_name || "", mappings: task.arguments?.mappings || []}), [task]);
     const dirty = JSON.stringify(payload) !== JSON.stringify(initial);
-    async function scan() {
+    const complete = mappings.length > 0 && payload.mappings.length === mappings.length;
+    const scan = React.useCallback(async () => {
         if (!instance) return setError("SELECT AN ETHERCAT MASTER FIRST.");
         setScanning(true); setError("");
         try { setTopology(unwrap(await operation("ethercat.scan", {module_instance_name: instance}, 30000))); }
         catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
         finally { setScanning(false); }
-    }
+    }, [instance, operation]);
+    React.useEffect(() => {
+        if (initialScanStarted.current || !instance || mappings.length === 0) return;
+        initialScanStarted.current = true;
+        void scan();
+    }, [instance, mappings.length, scan]);
     async function saveTask() {
         if (!instance) return setError("SELECT AN ETHERCAT MASTER.");
         if (payload.mappings.length === 0) return setError("ADD AT LEAST ONE COMPLETE PDO MAPPING.");
@@ -77,22 +98,30 @@ export function EthercatTaskConfig({task, operation, onSaved, onClose, taskEdito
         } finally { setSaving(false); }
     }
     React.useEffect(() => {
-        taskEditor?.register?.({isDirty: dirty, isSaving: saving, canSave: true, errorMessage: error,
+        taskEditor?.register?.({isDirty: dirty, isSaving: saving, canSave: Boolean(instance) && complete, errorMessage: error,
             saveLabel: "SAVE", cancelLabel: "CANCEL", onSave: saveTask, onCancel: onClose});
-    }, [taskEditor, dirty, saving, error, payload]);
+    }, [taskEditor, dirty, saving, error, payload, instance, complete]);
+    const slaveCount = topology?.slaves?.length || 0;
+    const processImage = topology?.process_image || {};
     return <div className="flex h-full min-h-0 flex-col gap-4">
-        <div className="space-y-2"><Label>ETHERCAT MASTER</Label><div className="flex gap-2">
+        <div className="rounded-md border bg-muted/20 p-3"><div className="space-y-2"><Label>ETHERCAT MASTER</Label><div className="flex gap-2">
             <div className="min-w-0 flex-1"><ModuleInstanceSelect pluginId="ethercat" moduleTypeIds={["master"]} value={instance}
-                onValueChange={(value) => { setInstance(value); setTopology(null); }} placeholder="SELECT ONE MASTER"/></div>
-            <Button variant="outline" onClick={scan}>{scanning ? "SCANNING…" : "SCAN BUS"}</Button>
-        </div><div className="text-xs text-muted-foreground">Scan after configuring the master. Schedule this periodic task at 1 ms for a 1 kHz exchange.</div></div>
-        <div className="flex items-center justify-between"><Label>CYCLIC PDO MAPPINGS</Label><Button variant="outline" disabled={!topology}
-            onClick={() => setMappings((current) => current.concat([{row_key: `new-${nextRow.current++}`, entry_key: "", channel: ""}]))}>ADD MAPPING</Button></div>
+                onValueChange={(value) => { if (value !== instance) setMappings([]); setInstance(value); setTopology(null); }} placeholder="SELECT ONE MASTER"/></div>
+            <Button variant="outline" disabled={!instance || scanning} onClick={scan}>{scanning ? "SCANNING…" : topology ? "REFRESH TOPOLOGY" : "SCAN BUS"}</Button>
+        </div>
+        {topology ? <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground"><span>{slaveCount} SLAVE{slaveCount === 1 ? "" : "S"}</span><span>{processImage.outputs_bytes || 0} OUTPUT BYTES</span><span>{processImage.inputs_bytes || 0} INPUT BYTES</span></div>
+            : <div className="text-xs text-muted-foreground">Connect the configured adapter to the TwinCAT simulation network, then scan to discover PDOs.</div>}
+        </div></div>
+        <div className="flex flex-wrap items-center justify-between gap-2"><div><Label>CYCLIC PDO MAPPINGS</Label><div className="mt-1 text-xs text-muted-foreground">{mappings.length} CONFIGURED</div></div><div className="flex gap-2">
+            <Button variant="outline" disabled={!topology} onClick={() => setMappings((current) => current.concat([{row_key: `new-${nextRow.current++}`, direction: "channel_to_device", entry_key: "", channel: "", scale: 1, offset: 0}]))}>ADD COMMAND</Button>
+            <Button variant="outline" disabled={!topology} onClick={() => setMappings((current) => current.concat([{row_key: `new-${nextRow.current++}`, direction: "device_to_channel", entry_key: "", channel: "", scale: 1, offset: 0}]))}>ADD TELEMETRY</Button>
+        </div></div>
         <ScrollArea className="min-h-0 flex-1" type="always"><div className="space-y-3 pr-4">
             {!topology && mappings.length === 0 ? <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">SELECT A MASTER AND SCAN THE BUS TO LOAD SLAVE AND PDO DROPDOWNS.</div> : null}
             {!topology && mappings.length > 0 ? <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">SHOWING SAVED PDO MAPPINGS. SCAN THE BUS TO REFRESH THE AVAILABLE ENTRIES.</div> : null}
             {topology && entries.length === 0 ? <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">NO MAPPED PDO ENTRIES WERE DISCOVERED.</div> : null}
-            {mappings.map((mapping, index) => <MappingRow key={mapping.row_key || index} mapping={mapping} entries={entries}
+            {topology && mappings.length === 0 ? <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">THE BUS IS READY. ADD A COMMAND OR TELEMETRY MAPPING.</div> : null}
+            {mappings.map((mapping, index) => <MappingRow key={mapping.row_key || index} mapping={mapping} entries={entries} index={index}
                 onChange={(next) => setMappings((current) => current.map((value, item) => item === index ? {...next, row_key: mapping.row_key} : value))}
                 onRemove={() => setMappings((current) => current.filter((_, item) => item !== index))}/>) }
         </div><ScrollBar orientation="vertical"/></ScrollArea>

@@ -5,8 +5,9 @@ import {EthercatTaskCard} from "./taskCards.jsx";
 import {EthercatTaskConfig} from "./taskConfigs.jsx";
 
 function EthercatIcon(props) {
-    return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...props}>
-        <path d="M3 7h5v10H3zM16 7h5v10h-5z"/><path d="M8 10h8M8 14h8M5 4v3M19 4v3M5 17v3M19 17v3"/>
+    return <svg viewBox="0 0 24 24" role="img" aria-label="EtherCAT" {...props}>
+        <path fill="#e63032" d="M2 4h13V1l7 5.5-7 5.5V9H2z"/>
+        <path fill="currentColor" d="M22 15H9v-3l-7 5.5L9 23v-3h13z"/>
     </svg>;
 }
 

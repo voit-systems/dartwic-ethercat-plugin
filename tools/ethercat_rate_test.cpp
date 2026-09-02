@@ -12,25 +12,28 @@
 
 int main(int argc, char** argv) {
     std::filesystem::path bridge;
+    std::string adapter;
     size_t cycles = 10000;
     int period_us = 1000;
     for (int i = 1; i < argc; ++i) {
         const std::string argument = argv[i];
         if (argument == "--bridge" && i + 1 < argc) bridge = argv[++i];
+        else if (argument == "--adapter" && i + 1 < argc) adapter = argv[++i];
         else if (argument == "--cycles" && i + 1 < argc) cycles = std::stoull(argv[++i]);
         else if (argument == "--period-us" && i + 1 < argc) period_us = std::stoi(argv[++i]);
         else {
-            std::cerr << "Usage: ethercat_rate_test [--bridge PATH] [--cycles N] [--period-us 1000]\n";
+            std::cerr << "Usage: ethercat_rate_test --bridge PATH --adapter ID [--cycles N] [--period-us 1000]\n";
             return 2;
         }
+    }
+    if (bridge.empty() || adapter.empty()) {
+        std::cerr << "Both --bridge and --adapter are required.\n";
+        return 2;
     }
 
     try {
         EtherCAT::BridgeLibrary library(bridge);
-        EtherCAT::BridgeLibrary::Master master(library, {
-            {"mode", "simulator"},
-            {"simulator_profile", "standard_io"},
-        });
+        EtherCAT::BridgeLibrary::Master master(library, {{"adapter", adapter}});
         const auto topology = master.scan();
         master.start();
         std::vector<uint8_t> outputs(master.outputSize(), 0);

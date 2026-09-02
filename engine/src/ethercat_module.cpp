@@ -9,9 +9,7 @@ EthercatModule::EthercatModule(nlohmann::json config, DARTWIC::API::SDK_API* api
 
 nlohmann::json EthercatModule::bridgeConfig() const {
     return {
-        {"mode", getParameter<std::string>("mode", "simulator")},
         {"adapter", getParameter<std::string>("adapter", "")},
-        {"simulator_profile", getParameter<std::string>("simulator_profile", "standard_io")},
         {"receive_timeout_us", getParameter<int>("receive_timeout_us", 500)},
     };
 }

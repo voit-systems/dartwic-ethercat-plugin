@@ -25,7 +25,7 @@ dw_ec_result writeText(const std::string& text, char* destination, size_t size, 
 extern "C" {
 uint32_t DW_EC_BRIDGE_CALL dw_ec_bridge_abi_version(void) { return DW_EC_BRIDGE_ABI_VERSION; }
 dw_ec_result DW_EC_BRIDGE_CALL dw_ec_list_adapters_json(char* out, size_t size, size_t* required) {
-    return writeText(R"([{"id":"fake","name":"Fake bridge","kind":"simulator"}])", out, size, required);
+    return writeText(R"([{"id":"fake","name":"Fake EtherCAT adapter","kind":"hardware"}])", out, size, required);
 }
 dw_ec_result DW_EC_BRIDGE_CALL dw_ec_open(const char*, dw_ec_context** context) {
     if (context == nullptr) return DW_EC_INVALID_ARGUMENT;
