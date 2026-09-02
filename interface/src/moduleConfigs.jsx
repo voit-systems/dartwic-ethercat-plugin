@@ -37,27 +37,18 @@ export function EthercatModuleConfig({instanceConfig, setInstanceConfig, save, o
         }
         return options;
     }, [adapters, parameters.adapter]);
-    return <div className="space-y-5">
-        <div className="rounded-md border bg-muted/20 p-4">
-            <div className="flex items-start justify-between gap-3">
-                <div><div className="text-sm font-semibold">PHYSICAL ETHERCAT MASTER</div>
-                    <div className="mt-1 text-xs text-muted-foreground">KickCAT exchanges PDO data directly through the selected Ethernet adapter.</div></div>
-                <div className="rounded border px-2 py-1 text-[10px] font-semibold text-muted-foreground">{loading ? "DISCOVERING" : `${adapters.length} FOUND`}</div>
-            </div>
-        </div>
+    return <div className="space-y-4">
         <div className="space-y-2">
-            <div className="flex items-center justify-between"><Label>ETHERCAT NETWORK ADAPTER</Label><Button variant="outline" disabled={loading} onClick={loadAdapters}>{loading ? "REFRESHING…" : "REFRESH ADAPTERS"}</Button></div>
-            <Select value={parameters.adapter || ""} onValueChange={(value) => update("adapter", value)}><SelectTrigger><SelectValue placeholder="SELECT A DEDICATED ETHERNET ADAPTER"/></SelectTrigger><SelectContent>
-                {adapterOptions.map((adapter) => <SelectItem key={adapter.id} value={adapter.id}>{adapter.name || adapter.id}</SelectItem>)}
-            </SelectContent></Select>
-            {parameters.adapter ? <div className="break-all text-[11px] text-muted-foreground">ADAPTER ID: {parameters.adapter}</div> : null}
-            {!loading && adapters.length === 0 ? <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">NO ETHERCAT-CAPABLE ADAPTERS WERE FOUND. ON WINDOWS, INSTALL NPCAP, RESTART DARTWIC, THEN REFRESH.</div> : null}
+            <Label>ETHERCAT NETWORK ADAPTER</Label>
+            <div className="flex items-center gap-2">
+                <div className="min-w-0 flex-1"><Select value={parameters.adapter || ""} onValueChange={(value) => update("adapter", value)}><SelectTrigger><SelectValue placeholder="SELECT ADAPTER"/></SelectTrigger><SelectContent>
+                    {adapterOptions.map((adapter) => <SelectItem key={adapter.id} value={adapter.id}>{adapter.name || adapter.id}</SelectItem>)}
+                </SelectContent></Select></div>
+                <Button className="h-10 shrink-0 px-4" variant="outline" disabled={loading} onClick={loadAdapters}>{loading ? "REFRESHING…" : "REFRESH"}</Button>
+            </div>
+            {!loading && adapters.length === 0 ? <div className="text-xs text-muted-foreground">NO ADAPTERS FOUND. WINDOWS REQUIRES NPCAP.</div> : null}
         </div>
         <div className="space-y-2"><Label>FRAME RECEIVE TIMEOUT (µs)</Label><Input type="number" min="50" step="50" value={parameters.receive_timeout_us ?? 500} onChange={(event) => update("receive_timeout_us", Number(event.target.value))}/>
-            <div className="text-xs text-muted-foreground">500 µs is a practical starting point for a 1 ms cycle. Increase it only when the adapter or simulated network needs more response time.</div>
-        </div>
-        <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">
-            Connect this adapter to the TwinCAT EtherCAT Simulation adapter. One running cyclic task owns the master exclusively; stop that task before changing adapters.
         </div>
     </div>;
 }
